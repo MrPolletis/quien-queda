@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0b0d13">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta property="og:title" content="Quién queda? — Crea tu grupo y organiza quedadas" />
+    <meta property="og:description" content="Crea el grupo con tus amigos, propón día, hora y lugar, usa la ruleta, el excusómetro y descubre las estadísticas y la cápsula del tiempo." />
+    <title>Quién queda?</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="app-shell">
+
+        <!-- ==================================================================
+             PANTALLA -1: CUENTA CON @USUARIO ÚNICO + CONTRASEÑA + AUTHENTICATOR
+             ================================================================== -->
+        <section id="auth-screen" class="onboarding-screen hidden">
+            <div class="onboarding-scroll">
+                <div class="onboarding-brand">
+                    <span class="onboarding-badge">CUENTA PERSONAL</span>
+                    <h1>👤 Tu @usuario</h1>
+                    <p>Crea tu @usuario único con contraseña. Cuando entres al link de WhatsApp podrás vincular tu nombre del grupo y recuperar tu cuenta con Authenticator si olvidas la clave.</p>
+                </div>
+
+                <!-- Pestañas: Crear Cuenta / Iniciar Sesión -->
+                <div class="period-mode-tabs" id="auth-mode-tabs" style="margin-bottom: 12px;">
+                    <button type="button" class="period-mode-btn active" data-auth-tab="register">➕ Crear Cuenta</button>
+                    <button type="button" class="period-mode-btn" data-auth-tab="login">🔑 Iniciar Sesión</button>
+                </div>
+
+                <!-- FORMULARIO 1: CREAR CUENTA (@USUARIO IRREPETIBLE + CONTRASEÑA) -->
+                <form id="form-auth-register" class="onboarding-card sheet-form">
+                    <div class="card-section-title">Crear nuevo @usuario</div>
+
+                    <div class="form-group">
+                        <label>🏷️ Nombre de usuario único (irrepetible)</label>
+                        <div style="display:flex; align-items:center; background:#0f121b; border:1px solid var(--border-subtle); border-radius:11px; padding-left:12px;">
+                            <span style="color:var(--accent-primary); font-weight:900; font-size:15px;">@</span>
+                            <input type="text" id="reg-username-input" required maxlength="20" autocomplete="username" style="border:none; background:transparent; padding-left:4px; text-transform:lowercase;">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>👤 Tu Nombre o Apodo en el grupo</label>
+                        <input type="text" id="reg-name-input" required maxlength="25" autocomplete="name">
+                    </div>
+
+                    <div class="form-group">
+                        <label>🔒 Contraseña</label>
+                        <input type="password" id="reg-password-input" required minlength="4" maxlength="40" autocomplete="new-password">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Elige tu icono / avatar</label>
+                        <div class="avatar-picker" id="auth-avatar-picker">
+                            <button type="button" class="avatar-opt active" data-avatar="😎">😎</button>
+                            <button type="button" class="avatar-opt" data-avatar="🔥">🔥</button>
+                            <button type="button" class="avatar-opt" data-avatar="🤠">🤠</button>
+                            <button type="button" class="avatar-opt" data-avatar="🦁">🦁</button>
+                            <button type="button" class="avatar-opt" data-avatar="⚡">⚡</button>
+                            <button type="button" class="avatar-opt" data-avatar="🦊">🦊</button>
+                            <button type="button" class="avatar-opt" data-avatar="👑">👑</button>
+                            <button type="button" class="avatar-opt" data-avatar="⚽">⚽</button>
+                            <button type="button" class="avatar-opt" data-avatar="🍻">🍻</button>
+                            <button type="button" class="avatar-opt" data-avatar="🚀">🚀</button>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="btn-submit-register" class="btn-primary-large" style="margin-top: 8px;">
+                        🚀 Crear mi @usuario
+                    </button>
+                </form>
+
+                <!-- TARJETA DE VINCULACIÓN CON GOOGLE / MICROSOFT AUTHENTICATOR -->
+                <div id="card-auth-totp-setup" class="onboarding-card sheet-form hidden">
+                    <div class="card-section-title">🛡️ Activa Google / Microsoft Authenticator</div>
+                    <p style="font-size: 12px; color: var(--text-muted); line-height: 1.45;">
+                        Si algún día olvidas tu contraseña, podrás recuperarla al instante con el código de 6 dígitos de tu app <strong>Authenticator</strong>:
+                    </p>
+
+                    <div style="display:flex; flex-direction:column; align-items:center; gap:10px; background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle); border-radius:14px; padding:14px;">
+                        <img id="totp-qr-img" src="" alt="QR Authenticator" style="width:165px; height:165px; border-radius:12px; background:#fff; padding:8px;">
+                        <a id="totp-open-app-link" href="#" class="btn-small-accent" style="text-decoration:none; display:inline-block; text-align:center;">
+                            📲 Abrir directamente en mi app Authenticator
+                        </a>
+                        <div style="width:100%; text-align:center;">
+                            <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px;">O copia esta clave secreta en Authenticator:</div>
+                            <div style="display:flex; gap:6px; justify-content:center; align-items:center;">
+                                <code id="totp-secret-text" style="background:#0f121b; padding:6px 10px; border-radius:8px; font-size:12px; font-weight:800; color:#ff9a3c; letter-spacing:1.5px;"></code>
+                                <button type="button" class="btn-icon-action" id="btn-copy-totp-secret">📋</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top:4px;">
+                        <label>🔢 Opcional: Introduce el código de 6 dígitos del Authenticator para comprobarlo</label>
+                        <input type="text" id="totp-verify-setup-input" inputmode="numeric" maxlength="6" style="text-align:center; letter-spacing:8px; font-size:18px; font-weight:800;">
+                    </div>
+
+                    <button type="button" id="btn-confirm-totp-setup" class="btn-primary-large">
+                        ✅ Guardar y Entrar a la App
+                    </button>
+                </div>
+
+                <!-- FORMULARIO 2: INICIAR SESIÓN (@USUARIO + CONTRASEÑA) -->
+                <form id="form-auth-login" class="onboarding-card sheet-form hidden">
+                    <div class="card-section-title">Iniciar Sesión</div>
+
+                    <div class="form-group">
+                        <label>🏷️ Tu @usuario</label>
+                        <div style="display:flex; align-items:center; background:#0f121b; border:1px solid var(--border-subtle); border-radius:11px; padding-left:12px;">
+                            <span style="color:var(--accent-primary); font-weight:900; font-size:15px;">@</span>
+                            <input type="text" id="login-username-input" required maxlength="20" autocomplete="username" style="border:none; background:transparent; padding-left:4px; text-transform:lowercase;">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>🔒 Contraseña</label>
+                        <input type="password" id="login-password-input" required maxlength="40" autocomplete="current-password">
+                    </div>
+
+                    <button type="submit" class="btn-primary-large" style="margin-top: 8px;">
+                        🔓 Entrar con mi @usuario
+                    </button>
+
+                    <button type="button" id="btn-open-recover-totp" class="btn-secondary-block" style="margin-top: 6px; text-align:center; color:#ff9a3c;">
+                        🛡️ ¿Olvidaste tu contraseña? Usar Authenticator
+                    </button>
+                </form>
+
+                <!-- FORMULARIO 3: RECUPERAR CONTRASEÑA CON AUTHENTICATOR (6 DÍGITOS TOTP) -->
+                <form id="form-auth-recover" class="onboarding-card sheet-form hidden">
+                    <div class="card-section-title">🛡️ Recuperar con Authenticator</div>
+                    <p style="font-size: 12px; color: var(--text-muted); line-height: 1.45;">
+                        Abre la app <strong>Authenticator</strong> de tu móvil, mira el código de 6 dígitos de tu cuenta y elige una contraseña nueva:
+                    </p>
+
+                    <div class="form-group">
+                        <label>🏷️ Tu @usuario</label>
+                        <div style="display:flex; align-items:center; background:#0f121b; border:1px solid var(--border-subtle); border-radius:11px; padding-left:12px;">
+                            <span style="color:var(--accent-primary); font-weight:900; font-size:15px;">@</span>
+                            <input type="text" id="recover-username-input" required maxlength="20" style="border:none; background:transparent; padding-left:4px; text-transform:lowercase;">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>🔢 Código de 6 dígitos de tu Authenticator</label>
+                        <input type="text" id="recover-totp-input" inputmode="numeric" pattern="[0-9]{6}" required maxlength="6" style="text-align:center; letter-spacing:8px; font-size:19px; font-weight:800;">
+                    </div>
+
+                    <div class="form-group">
+                        <label>🔑 Nueva Contraseña</label>
+                        <input type="password" id="recover-new-password-input" required minlength="4" maxlength="40">
+                    </div>
+
+                    <button type="submit" class="btn-primary-large" style="margin-top: 8px;">
+                        ✅ Cambiar Contraseña y Entrar
+                    </button>
+                    <button type="button" id="btn-back-to-login" class="btn-secondary-block" style="margin-top: 6px; text-align:center;">
+                        ⬅️ Volver a Iniciar Sesión
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- ==================================================================
+             PANTALLA 0: BIENVENIDA / CREAR GRUPO DESDE CERO (ESTILO WHATSAPP)
+             ================================================================== -->
+        <section id="onboarding-screen" class="onboarding-screen hidden">
+            <div class="onboarding-scroll">
+                <div class="onboarding-brand">
+                    <span class="onboarding-badge">APP DE QUEDADAS</span>
+                    <h1>¿Quién queda?</h1>
+                    <p>Crea tu grupo de amigos, añade todos los nombres que quieras y cuando les pases el link cada uno vinculará su nombre a su teléfono.</p>
+                </div>
+
+                <form id="form-onboarding-group" class="onboarding-card">
+                    <div class="card-section-title">1. Datos del Grupo</div>
+
+                    <div class="wa-group-photo-row">
+                        <label for="onboarding-photo-input" class="wa-photo-Circle" id="onboarding-photo-preview" title="Subir foto del grupo">
+                            <span id="onboarding-photo-placeholder">📷</span>
+                            <img id="onboarding-photo-img" src="" alt="Foto grupo" class="hidden">
+                            <span class="wa-photo-edit-badge">✎</span>
+                        </label>
+                        <input type="file" id="onboarding-photo-input" accept="image/*" class="hidden">
+
+                        <div class="wa-group-inputs">
+                            <input type="text" id="onboarding-group-name" placeholder="Nombre del grupo" required maxlength="40">
+                            <input type="text" id="onboarding-group-desc" placeholder="Descripción del grupo (opcional)" maxlength="80">
+                        </div>
+                    </div>
+
+                    <div class="card-section-title" style="margin-top: 18px;">2. Integrantes del Grupo</div>
+                    <p class="helper-hint">El primer integrante que añadas será el <strong>Admin inicial</strong> (luego podréis nombrar más admins como en WhatsApp):</p>
+
+                    <div class="add-member-inline">
+                        <input type="text" id="onboarding-member-name" placeholder="Nombre de integrante" maxlength="25">
+                        <button type="button" class="btn-add-inline" id="btn-add-onboarding-member">＋ Añadir</button>
+                    </div>
+
+                    <div id="onboarding-members-chips" class="members-chips-container"></div>
+
+                    <button type="submit" class="btn-primary-large" style="margin-top: 18px;">
+                        ✅ Crear Grupo y Entrar
+                    </button>
+                </form>
+
+                <div class="onboarding-join-card">
+                    <div class="card-section-title">¿Tu grupo ya existe?</div>
+                    <div class="add-member-inline">
+                        <input type="text" id="onboarding-join-code" placeholder="Introduce el código del grupo" maxlength="12" style="text-transform:uppercase;">
+                        <button type="button" class="btn-add-inline secondary" id="btn-onboarding-join">Entrar</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================================================================
+             CABECERA PRINCIPAL DEL GRUPO ACTIVO
+             ================================================================== -->
+        <header class="app-header" id="main-app-header">
+            <div class="header-left" id="open-group-switcher" title="Cambiar o crear otro grupo">
+                <div class="group-avatar" id="header-group-avatar">
+                    <span id="header-group-emoji">👥</span>
+                    <img id="header-group-img" src="" alt="Grupo" class="hidden">
+                </div>
+                <div class="group-meta">
+                    <div class="brand-mini-row">
+                        <span class="brand-tag">QUIÉN QUEDA?</span>
+                        <span class="sync-dot" id="sync-status-badge">● Local</span>
+                    </div>
+                    <div class="group-label-row">
+                        <span class="group-name" id="header-group-name">Mi Grupo</span>
+                        <span class="chevron-down">▾</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="header-right">
+                <button class="notif-bell-btn" id="open-share-header-btn" title="Compartir grupo por WhatsApp" style="background:rgba(37, 211, 102, 0.16); border-color:rgba(37, 211, 102, 0.45);">
+                    📲
+                </button>
+                <button class="notif-bell-btn" id="open-notifications-btn" title="Quedadas pendientes de confirmar asistencia">
+                    🔔
+                    <span class="notif-badge hidden" id="notif-pending-count">0</span>
+                </button>
+                <button class="active-user-pill" id="open-user-switcher" title="Cambiar integrante activo">
+                    <span class="user-avatar-mini" id="active-user-avatar">👤</span>
+                    <span class="user-name-mini" id="active-user-name">Yo</span>
+                    <span class="pill-switch-icon">▾</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- BANNER DE NOTIFICACIÓN AUTOMÁTICA CUANDO FINALIZA UNA QUEDADA -->
+        <div id="finished-hangout-banner" class="finished-banner hidden">
+            <div class="finished-banner-left">
+                <span class="finished-bell">🔔</span>
+                <div>
+                    <div class="finished-banner-title" id="finished-banner-title">¡Quedada finalizada!</div>
+                    <div class="finished-banner-sub" id="finished-banner-sub">Toca para confirmar asistencia, foto y puntualidad</div>
+                </div>
+            </div>
+            <button class="btn-finished-confirm" id="btn-finished-banner-open">Pasar lista</button>
+        </div>
+
+        <!-- ==================================================================
+             CONTENIDO PRINCIPAL CON SCROLL
+             ================================================================== -->
+        <main class="app-content" id="app-content">
+
+            <!-- ================= VISTA 1: QUEDADAS DEL GRUPO ================= -->
+            <section id="view-plans" class="tab-view active">
+                <div class="quick-actions-grid">
+                    <div class="quick-create-card" id="quick-create-trigger">
+                        <div class="quick-create-left">
+                            <span class="quick-create-icon">📅</span>
+                            <div>
+                                <div class="quick-create-title">Crear Quedada</div>
+                                <div class="quick-create-sub">Día, hora, lugar y etiquetas</div>
+                            </div>
+                        </div>
+                        <span class="quick-create-plus">＋</span>
+                    </div>
+
+                    <button type="button" class="quick-roulette-btn" id="open-standalone-roulette-btn" title="Abrir Ruleta de Indecisos">
+                        <span style="font-size:22px;">🎰</span>
+                        <span>Ruleta</span>
+                    </button>
+                </div>
+
+                <!-- Filtros de quedadas -->
+                <div class="sub-tabs-bar">
+                    <button class="sub-tab active" data-plan-filter="upcoming">
+                        ⏳ Activas <span class="badge-count" id="count-upcoming">0</span>
+                    </button>
+                    <button class="sub-tab" data-plan-filter="pending_check">
+                        🔔 Por confirmar <span class="badge-count" id="count-pending">0</span>
+                    </button>
+                    <button class="sub-tab" data-plan-filter="completed">
+                        📸 Finalizadas <span class="badge-count" id="count-past">0</span>
+                    </button>
+                </div>
+
+                <!-- Lista de tarjetas de quedadas -->
+                <div id="plans-list" class="plans-list"></div>
+            </section>
+
+            <!-- ================= VISTA 2: ESTADÍSTICAS, PIQUE Y CÁPSULA DEL TIEMPO ================= -->
+            <section id="view-stats" class="tab-view hidden">
+                <div class="section-header-row">
+                    <div>
+                        <h2 class="section-title">📊 Estadísticas y Pique</h2>
+                        <p class="section-subtitle">Gráficos, rachas, fantasmetro, excusómetro y recuerdos</p>
+                    </div>
+                    <button class="btn-wrapped-trigger" id="open-wrapped-btn">
+                        ✨ Story Wrapped
+                    </button>
+                </div>
+
+                <!-- Selector de dimensión temporal: Mes / Estación (Cuatrimestre) / Año -->
+                <div class="period-mode-tabs">
+                    <button class="period-mode-btn active" data-period-mode="month">📅 Mes</button>
+                    <button class="period-mode-btn" data-period-mode="season">🍂 Estación</button>
+                    <button class="period-mode-btn" data-period-mode="year">🏆 Año</button>
+                </div>
+
+                <!-- Selector dinámico del periodo específico -->
+                <div class="period-selector-strip" id="period-selector-strip"></div>
+
+                <!-- Tarjetas KPI Resumen del periodo -->
+                <div class="stats-kpi-grid" id="stats-kpi-grid"></div>
+
+                <!-- TÍTULOS DINÁMICOS PERSONALIZABLES DEL GRUPO -->
+                <div class="card-panel">
+                    <div class="panel-header">
+                        <h3>🏷️ Títulos Dinámicos del Periodo</h3>
+                        <button class="btn-link-mini" id="btn-edit-custom-titles">✏️ Personalizar títulos</button>
+                    </div>
+                    <div id="dynamic-titles-grid" class="stats-awards-grid"></div>
+                </div>
+
+                <!-- GRÁFICO 1: Gráfico de barras de asistencia por integrante (%) -->
+                <div class="card-panel">
+                    <div class="panel-header">
+                        <h3>📈 Gráfico de Asistencia por Integrante</h3>
+                        <span class="panel-caption" id="chart-members-period-label">Este periodo</span>
+                    </div>
+                    <div id="members-bar-chart" class="vertical-bar-chart"></div>
+                </div>
+
+                <!-- DETALLE DE ASISTENCIA + RACHAS DE FUEGO POR INTEGRANTE -->
+                <div class="card-panel">
+                    <div class="panel-header">
+                        <h3>🔥 Ranking, Porcentaje y Rachas</h3>
+                        <span class="panel-caption">🔥 3+ · 🔥🔥 5+ · 👑🔥 10+</span>
+                    </div>
+                    <div id="attendance-ranking-list" class="ranking-list"></div>
+                </div>
+
+                <!-- GRÁFICO 2: Evolución de Quedadas realizadas (Por Mes / Cuatrimestre) -->
+                <div class="card-panel">
+                    <div class="panel-header">
+                        <h3>📊 Gráfico de Quedadas Realizadas</h3>
+                        <span class="panel-caption" id="chart-timeline-label">Evolución</span>
+                    </div>
+                    <div id="hangouts-timeline-chart" class="vertical-bar-chart"></div>
+                </div>
+
+                <!-- EL FANTASMETRO (ÍNDICE DE FLAKE) Y PUNTUALIDAD -->
+                <div class="card-panel">
+                    <div class="panel-header">
+                        <h3>👻 El Fantasmetro e Impuntualidad</h3>
+                        <span class="panel-caption">Caídas a última hora (&lt;2h) o sin aparecer</span>
+                    </div>
+                    <div id="fantasmetro-list" class="ranking-list"></div>
+                </div>
+
+                <!-- EL EXCUSÓMETRO -->
+                <div class="card-panel">
+                    <div class="panel-header">
+                        <h3>🤥 El Excusómetro del Grupo</h3>
+                        <span class="panel-caption">Excusas más repetidas al decir "No voy"</span>
+                    </div>
+                    <div id="excusometro-list" class="top-places-list"></div>
+                </div>
+
+                <!-- DÚOS DINÁMICOS (AFINIDAD) -->
+                <div class="card-panel">
+                    <div class="panel-header">
+                        <h3>🤝 Dúos Dinámicos (Afinidad)</h3>
+                        <span class="panel-caption">Quiénes coinciden siempre y quiénes nunca</span>
+                    </div>
+                    <div id="duos-afinidad-box" class="duos-grid"></div>
+                </div>
+
+                <!-- MAPA DE CALOR POR DÍAS DE LA SEMANA + ÉXITO POR ETIQUETAS -->
+                <div class="card-panel">
+                    <div class="panel-header">
+                        <h3>🗓️ Mapa de Calor por Día de la Semana</h3>
+                        <span class="panel-caption">¿Qué día triunfa más?</span>
+                    </div>
+                    <div id="weekday-heatmap" class="weekday-heatmap"></div>
+
+                    <div class="panel-header" style="margin-top: 16px; margin-bottom: 10px;">
+                        <h3>🏷️ Éxito por Etiqueta (Tags)</h3>
+                        <span class="panel-caption">Planes que más triunfan</span>
+                    </div>
+                    <div id="tags-stats-list" class="top-places-list"></div>
+                </div>
+
+                <!-- CÁPSULA DEL TIEMPO (GALERÍA DE FOTOS DE PRUEBA Y FRASES MÍTICAS) -->
+                <div class="card-panel">
+                    <div class="panel-header">
+                        <h3>📸 Cápsula del Tiempo (Recuerdos)</h3>
+                        <span class="panel-caption">Fotos de prueba y frases míticas</span>
+                    </div>
+                    <div id="time-capsule-gallery" class="capsule-grid"></div>
+                </div>
+            </section>
+
+            <!-- ================= VISTA 3: EL GRUPO (ADMINS ESTILO WHATSAPP Y AJUSTES) ================= -->
+            <section id="view-group" class="tab-view hidden">
+                <div class="group-hero-card">
+                    <div class="group-hero-top">
+                        <label for="edit-group-photo-input" class="group-hero-avatar-wrap" title="Cambiar foto del grupo">
+                            <span id="group-view-emoji">👥</span>
+                            <img id="group-view-img" src="" alt="Foto grupo" class="hidden">
+                            <span class="wa-photo-edit-badge">📷</span>
+                        </label>
+                        <input type="file" id="edit-group-photo-input" accept="image/*" class="hidden">
+
+                        <div class="group-hero-info" style="flex:1;">
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                                <h2 id="group-view-name">Nombre del Grupo</h2>
+                                <button class="btn-link-mini" id="btn-edit-group-info">✏️ Editar</button>
+                            </div>
+                            <p id="group-view-desc">Sin descripción</p>
+                        </div>
+                    </div>
+
+                    <div class="invite-box">
+                        <div>
+                            <span class="invite-label">CÓDIGO Y ENLACE PARA WHATSAPP</span>
+                            <div class="invite-code" id="group-invite-code">------</div>
+                        </div>
+                        <div class="invite-actions">
+                            <button class="btn-icon-action" id="copy-code-btn">🔗 Copiar</button>
+                            <button class="btn-icon-action primary" id="share-whatsapp-btn">📲 Compartir</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Integrantes y Admins del Grupo (Estilo WhatsApp) -->
+                <div class="card-panel">
+                    <div class="panel-header">
+                        <h3>👥 Integrantes y Admins (<span id="members-count-badge">0</span>)</h3>
+                        <button class="btn-small-accent" id="open-add-member-btn">+ Añadir Integrante</button>
+                    </div>
+                    <p class="helper-hint">
+                        👑 Como en WhatsApp, podéis designar todos los <strong>Admins</strong> que queráis, pero siempre debe haber <strong>mínimo 1 Admin</strong> en el grupo.
+                    </p>
+                    <div id="group-members-list" class="members-list"></div>
+                </div>
+
+                <!-- Personalización de Títulos Dinámicos y Etiquetas del Grupo -->
+                <div class="card-panel">
+                    <div class="panel-header">
+                        <h3>🏷️ Títulos y Etiquetas del Grupo</h3>
+                    </div>
+                    <div class="settings-actions">
+                        <button class="btn-secondary-block" id="btn-open-titles-from-group">🏆 Configurar Títulos Dinámicos del mes/año</button>
+                    </div>
+                </div>
+
+                <!-- Gestión de Grupos -->
+                <div class="card-panel">
+                    <div class="panel-header">
+                        <h3>⚙️ Gestión de Grupos</h3>
+                    </div>
+                    <div class="settings-actions">
+                        <button class="btn-secondary-block" id="btn-create-new-group">➕ Crear o cambiar a otro grupo</button>
+                        <button class="btn-secondary-block danger-text" id="btn-delete-current-group">🗑️ Eliminar este grupo por completo</button>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- BARRA DE NAVEGACIÓN INFERIOR -->
+        <nav class="bottom-nav" id="main-bottom-nav">
+            <button class="nav-item active" data-target="view-plans">
+                <span class="nav-icon">📅</span>
+                <span class="nav-label">Quedadas</span>
+            </button>
+
+            <button class="nav-fab" id="open-create-plan-btn" aria-label="Crear Quedada">
+                <span class="fab-plus">＋</span>
+                <span class="fab-text">Crear Quedada</span>
+            </button>
+
+            <button class="nav-item" data-target="view-stats">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label">Estadísticas</span>
+            </button>
+
+            <button class="nav-item" data-target="view-group">
+                <span class="nav-icon">👥</span>
+                <span class="nav-label">Grupo</span>
+            </button>
+        </nav>
+
+        <!-- TOAST DE NOTIFICACIÓN -->
+        <div id="toast-notification" class="toast hidden"></div>
+    </div>
+
+    <!-- ======================================================================
+         MODAL: CREAR QUEDADA (CON ETIQUETAS EDITABLES + BOTÓN RULETA DE LUGAR)
+         ====================================================================== -->
+    <div id="modal-create-plan" class="modal-overlay hidden">
+        <div class="bottom-sheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-header">
+                <h3>📅 Crear Quedada</h3>
+                <button class="sheet-close" data-close-modal="modal-create-plan">&times;</button>
+            </div>
+
+            <form id="form-create-plan" class="sheet-form">
+                <div class="form-group">
+                    <label>Nombre o motivo de la quedada</label>
+                    <input type="text" id="plan-title-input" required maxlength="60">
+                </div>
+
+                <!-- Etiquetas (Tags) 100% editables por el grupo -->
+                <div class="form-group">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <label>🏷️ Etiqueta del plan (100% personalizable)</label>
+                    </div>
+                    <div id="plan-custom-tags-list" class="category-chips"></div>
+                    <div class="add-member-inline" style="margin-top: 6px;">
+                        <input type="text" id="new-custom-tag-input" maxlength="25">
+                        <button type="button" class="btn-add-inline" id="btn-add-custom-tag">＋ Etiqueta</button>
+                    </div>
+                </div>
+
+                <!-- Selector rápido de Día: Hoy, Mañana, El Finde u Otra fecha -->
+                <div class="form-group">
+                    <label>¿Qué día quedáis?</label>
+                    <div class="day-preset-pills" id="day-preset-pills">
+                        <button type="button" class="day-pill active" data-day-preset="today">Hoy</button>
+                        <button type="button" class="day-pill" data-day-preset="tomorrow">Mañana</button>
+                        <button type="button" class="day-pill" data-day-preset="weekend">Este Finde</button>
+                        <button type="button" class="day-pill" data-day-preset="custom">📆 Otra fecha</button>
+                    </div>
+                    <input type="date" id="plan-date-input" required style="margin-top: 6px;">
+                </div>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label>⏰ Hora</label>
+                        <input type="time" id="plan-time-input" value="20:00" required>
+                    </div>
+                    <div class="form-group">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <label>📍 Lugar</label>
+                            <button type="button" class="btn-link-mini" id="btn-open-roulette-from-create">🎰 Ruleta</button>
+                        </div>
+                        <input type="text" id="plan-location-input" required maxlength="60">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>📝 Notas o detalles adicionales (opcional)</label>
+                    <input type="text" id="plan-notes-input" maxlength="120">
+                </div>
+
+                <div class="form-toggle-box">
+                    <div>
+                        <div class="toggle-title">🗳️ Permitir votar otras horas o lugares</div>
+                        <div class="toggle-desc">Los integrantes podrán añadir propuestas de hora y sitio</div>
+                    </div>
+                    <input type="checkbox" id="plan-voting-toggle" checked class="ios-switch">
+                </div>
+
+                <button type="submit" class="btn-primary-large">✅ Guardar y Publicar Quedada</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================================
+         MODAL: RULETA DE INDECISOS (PARA DECIDIR LUGAR O PLAN A LA SUERTE)
+         ====================================================================== -->
+    <div id="modal-roulette" class="modal-overlay hidden">
+        <div class="bottom-sheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-header">
+                <h3>🎰 Ruleta de Indecisos</h3>
+                <button class="sheet-close" data-close-modal="modal-roulette">&times;</button>
+            </div>
+            <p class="helper-hint">Que cada amigo añada un lugar o plan y girad la ruleta en directo para decidir sin discutir:</p>
+
+            <div class="add-member-inline">
+                <input type="text" id="roulette-option-input" maxlength="40">
+                <button type="button" class="btn-add-inline" id="btn-add-roulette-option">＋ Añadir</button>
+            </div>
+
+            <div id="roulette-options-chips" class="members-chips-container"></div>
+
+            <div class="roulette-wheel-wrapper">
+                <div class="roulette-pointer">▼</div>
+                <canvas id="roulette-canvas" width="250" height="250"></canvas>
+            </div>
+
+            <div id="roulette-winner-banner" class="roulette-winner-banner hidden"></div>
+
+            <div style="display:flex; gap:8px; margin-top: 10px;">
+                <button type="button" class="btn-primary-large" id="btn-spin-roulette" style="flex:1;">
+                    🎲 ¡Girar la Ruleta!
+                </button>
+                <button type="button" class="btn-add-inline secondary hidden" id="btn-use-roulette-winner">
+                    📍 Usar este lugar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================================
+         MODAL: EL EXCUSÓMETRO (CUANDO ALGUIEN MARCA "❌ NO VOY")
+         ====================================================================== -->
+    <div id="modal-excuse" class="modal-overlay hidden">
+        <div class="bottom-sheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-header">
+                <h3>🤥 El Excusómetro</h3>
+                <button class="sheet-close" data-close-modal="modal-excuse">&times;</button>
+            </div>
+            <input type="hidden" id="excuse-plan-id">
+            <p class="sheet-subtitle" id="excuse-warning-flake"></p>
+            <p class="helper-hint">Has marcado que <strong>No vas</strong>. Elige una excusa o escribe tu motivo para el registro del grupo:</p>
+
+            <div id="excuse-presets-chips" class="category-chips" style="margin-bottom: 10px;"></div>
+
+            <form id="form-excuse" class="sheet-form">
+                <div class="form-group">
+                    <label>Motivo o excusa personalizada</label>
+                    <input type="text" id="excuse-custom-input" required maxlength="70">
+                </div>
+                <button type="submit" class="btn-primary-large">❌ Confirmar que No voy</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================================
+         MODAL DE CIERRE DE QUEDADA: "¿QUIÉNES HAN ASISTIDO?" + PUNTUALIDAD + FOTO
+         ====================================================================== -->
+    <div id="modal-confirm-attendance" class="modal-overlay hidden">
+        <div class="bottom-sheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-header">
+                <h3>🔔 Cierre y Pase de Lista</h3>
+                <button class="sheet-close" data-close-modal="modal-confirm-attendance">&times;</button>
+            </div>
+            <p class="sheet-subtitle" id="confirm-attendance-plan-title"></p>
+            <p class="helper-hint" style="margin-bottom: 10px;">
+                1. Marca quiénes han asistido realmente (quien dijo que iba y no aparezca sumará puntos en el <strong>Fantasmetro 👻</strong>):
+            </p>
+            <input type="hidden" id="confirm-attendance-plan-id">
+            <div id="confirm-attendance-members-list" class="attendance-sheet-list"></div>
+
+            <!-- Check-in de Puntualidad -->
+            <div class="form-group" style="margin-top: 14px;">
+                <label>🐢 2. Check-in de Puntualidad: ¿Quién llegó el último? (Opcional)</label>
+                <select id="confirm-late-member-select" class="custom-select">
+                    <option value="">Nadie / Todos puntuales</option>
+                </select>
+            </div>
+
+            <!-- La Cápsula del Tiempo: Foto de prueba + Frase mítica -->
+            <div class="capsule-upload-box" style="margin-top: 14px;">
+                <div class="card-section-title" style="margin-bottom: 8px;">📸 3. Cápsula del Tiempo (Ticket de Asistencia)</div>
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
+                    <label for="confirm-memory-photo-input" class="memory-photo-trigger">
+                        <span id="memory-photo-placeholder">📷 Subir foto</span>
+                        <img id="memory-photo-preview" src="" alt="Recuerdo" class="hidden">
+                    </label>
+                    <input type="file" id="confirm-memory-photo-input" accept="image/*" class="hidden">
+                    <input type="text" id="confirm-memory-quote-input" maxlength="90" style="flex:1; background:#0f121b; border:1px solid rgba(255,255,255,0.1); border-radius:11px; padding:11px; color:#fff; font-size:12.5px;">
+                </div>
+            </div>
+
+            <button type="button" class="btn-primary-large" id="btn-save-final-attendance" style="margin-top: 14px;">
+                📊 Guardar Asistencia, Recuerdo y Estadísticas
+            </button>
+        </div>
+    </div>
+
+    <!-- ======================================================================
+         MODAL: CONFIGURAR ROLES Y TÍTULOS DINÁMICOS DEL GRUPO
+         ====================================================================== -->
+    <div id="modal-custom-titles" class="modal-overlay hidden">
+        <div class="bottom-sheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-header">
+                <h3>🏷️ Títulos Dinámicos del Grupo</h3>
+                <button class="sheet-close" data-close-modal="modal-custom-titles">&times;</button>
+            </div>
+            <p class="helper-hint">Crea vuestros propios títulos personalizados. La app se los asignará automáticamente según las estadísticas:</p>
+            <form id="form-custom-titles" class="sheet-form">
+                <div class="form-group">
+                    <label>👑 Título para el Mayor % de asistencia (MVP)</label>
+                    <input type="text" id="title-mvp-input" required maxlength="35">
+                </div>
+                <div class="form-group">
+                    <label>💀 Título de castigo para el Menor % / 0% asistencia</label>
+                    <input type="text" id="title-zero-input" required maxlength="35">
+                </div>
+                <div class="form-group">
+                    <label>👻 Título para el nº1 del Fantasmetro (Más Flakes)</label>
+                    <input type="text" id="title-flake-input" required maxlength="35">
+                </div>
+                <div class="form-group">
+                    <label>🐢 Título para el que más veces llega el último</label>
+                    <input type="text" id="title-late-input" required maxlength="35">
+                </div>
+                <button type="submit" class="btn-primary-large">💾 Guardar Títulos del Grupo</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================================
+         MODAL: WRAPPED POR ESTACIONES Y FIN DE AÑO (FORMATO STORY VERTICAL 9:16)
+         ====================================================================== -->
+    <div id="modal-wrapped" class="modal-overlay hidden">
+        <div class="wrapped-story-card">
+            <button class="wrapped-close" data-close-modal="modal-wrapped">&times;</button>
+            <div id="wrapped-story-content"></div>
+            <div style="margin-top: 12px;">
+                <button type="button" class="btn-primary-large" id="share-wrapped-btn">📲 Compartir Recap por WhatsApp</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================================
+         MODAL: PROPONER OTRA HORA / LUGAR
+         ====================================================================== -->
+    <div id="modal-add-proposal" class="modal-overlay hidden">
+        <div class="bottom-sheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-header">
+                <h3>🗳️ Proponer Hora / Lugar</h3>
+                <button class="sheet-close" data-close-modal="modal-add-proposal">&times;</button>
+            </div>
+            <form id="form-add-proposal" class="sheet-form">
+                <input type="hidden" id="proposal-plan-id">
+                <p class="sheet-subtitle" id="proposal-plan-title-label"></p>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label>⏰ Hora propuesta</label>
+                        <input type="time" id="proposal-time-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label>📍 Lugar propuesto</label>
+                        <input type="text" id="proposal-location-input" required maxlength="50">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>💬 Comentario (opcional)</label>
+                    <input type="text" id="proposal-reason-input" maxlength="80">
+                </div>
+
+                <button type="submit" class="btn-primary-large">➕ Añadir propuesta</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================================
+         MODAL: AÑADIR INTEGRANTE AL GRUPO
+         ====================================================================== -->
+    <div id="modal-add-member" class="modal-overlay hidden">
+        <div class="bottom-sheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-header">
+                <h3>👤 Añadir Integrante</h3>
+                <button class="sheet-close" data-close-modal="modal-add-member">&times;</button>
+            </div>
+            <form id="form-add-member" class="sheet-form">
+                <div class="form-group">
+                    <label>Nombre del integrante</label>
+                    <input type="text" id="member-name-input" required maxlength="25">
+                </div>
+                <div class="form-group">
+                    <label>🏷️ @usuario de este amigo (Opcional — o lo vinculará él al entrar al link)</label>
+                    <div style="display:flex; align-items:center; background:#0f121b; border:1px solid var(--border-subtle); border-radius:11px; padding-left:12px;">
+                        <span style="color:var(--accent-primary); font-weight:900; font-size:15px;">@</span>
+                        <input type="text" id="member-username-input" maxlength="20" style="border:none; background:transparent; padding-left:4px; text-transform:lowercase;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Icono o avatar</label>
+                    <div class="avatar-picker" id="member-avatar-picker">
+                        <button type="button" class="avatar-opt active" data-avatar="😎">😎</button>
+                        <button type="button" class="avatar-opt" data-avatar="🔥">🔥</button>
+                        <button type="button" class="avatar-opt" data-avatar="🤠">🤠</button>
+                        <button type="button" class="avatar-opt" data-avatar="🦁">🦁</button>
+                        <button type="button" class="avatar-opt" data-avatar="⚡">⚡</button>
+                        <button type="button" class="avatar-opt" data-avatar="🦊">🦊</button>
+                        <button type="button" class="avatar-opt" data-avatar="👑">👑</button>
+                        <button type="button" class="avatar-opt" data-avatar="👻">👻</button>
+                        <button type="button" class="avatar-opt" data-avatar="⚽">⚽</button>
+                        <button type="button" class="avatar-opt" data-avatar="🍻">🍻</button>
+                    </div>
+                </div>
+                <div class="form-toggle-box">
+                    <div>
+                        <div class="toggle-title">👑 Hacer Admin del grupo</div>
+                        <div class="toggle-desc">Tendrá permisos de administrador como en WhatsApp</div>
+                    </div>
+                    <input type="checkbox" id="member-is-admin-toggle" class="ios-switch">
+                </div>
+                <button type="submit" class="btn-primary-large">👥 Añadir al Grupo</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================================
+         MODAL: EDITAR NOMBRE Y DESCRIPCIÓN DEL GRUPO
+         ====================================================================== -->
+    <div id="modal-edit-group" class="modal-overlay hidden">
+        <div class="bottom-sheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-header">
+                <h3>✏️ Editar Datos del Grupo</h3>
+                <button class="sheet-close" data-close-modal="modal-edit-group">&times;</button>
+            </div>
+            <form id="form-edit-group" class="sheet-form">
+                <div class="form-group">
+                    <label>Nombre del grupo</label>
+                    <input type="text" id="edit-group-name-input" required maxlength="40">
+                </div>
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <input type="text" id="edit-group-desc-input" maxlength="80">
+                </div>
+                <button type="submit" class="btn-primary-large">Guardar cambios</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================================
+         MODAL: VINCULAR TU @USUARIO A UN NOMBRE DEL GRUPO ("¿QUIÉN ERES TÚ?")
+         ====================================================================== -->
+    <div id="modal-who-are-you" class="modal-overlay hidden">
+        <div class="bottom-sheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-header">
+                <h3>🔗 Vincular tu Nombre</h3>
+                <button class="sheet-close" data-close-modal="modal-who-are-you">&times;</button>
+            </div>
+            <p class="sheet-subtitle" id="who-modal-group-title"></p>
+            <div id="who-modal-account-banner" style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); padding:9px 12px; border-radius:11px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; font-size:11.5px;"></div>
+            <p class="helper-hint">
+                Si un amigo ya había escrito tu nombre en el grupo, tócalo para <strong>asociarlo a tu @usuario y protegerlo con tu contraseña 🔒</strong>:
+            </p>
+            <div id="who-modal-members-grid" class="who-members-grid"></div>
+            <hr class="sheet-divider">
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <button type="button" class="btn-secondary-block" id="who-modal-new-member-btn" style="text-align:center;">
+                    ➕ No estoy en la lista, unirme con mi @usuario
+                </button>
+                <button type="button" class="btn-secondary-block" id="btn-open-my-authenticator" style="text-align:center; color:#2ecc71;">
+                    🛡️ Ver mi QR / Clave de Authenticator
+                </button>
+                <button type="button" class="btn-secondary-block" id="btn-switch-phone-account" style="text-align:center; color:#ff9a3c;">
+                    👤 Cambiar de @usuario / Cerrar sesión
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================================
+         MODAL: VERIFICAR CONTRASEÑA O AUTHENTICATOR (PROTECCIÓN ANTI-SUPLANTACIÓN)
+         ====================================================================== -->
+    <div id="modal-pin-verify" class="modal-overlay hidden">
+        <div class="bottom-sheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-header">
+                <h3>🔒 Perfil Protegido</h3>
+                <button class="sheet-close" data-close-modal="modal-pin-verify">&times;</button>
+            </div>
+            <p class="sheet-subtitle" id="pin-verify-subtitle"></p>
+            <p class="helper-hint">Este perfil está vinculado a otro @usuario. Introduce su <strong>contraseña</strong> (o el <strong>código de 6 dígitos de su Authenticator</strong>) para confirmar que eres tú:</p>
+            <form id="form-pin-verify" class="sheet-form">
+                <input type="hidden" id="pin-verify-member-id">
+                <div class="form-group">
+                    <label>🔑 Contraseña o código Authenticator (6 dígitos)</label>
+                    <input type="password" id="pin-verify-input" required maxlength="40">
+                </div>
+                <button type="submit" class="btn-primary-large">🔓 Desbloquear y Usar este Perfil</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================================
+         MODAL: CAMBIAR DE GRUPO O CREAR OTRO GRUPO
+         ====================================================================== -->
+    <div id="modal-group-switcher" class="modal-overlay hidden">
+        <div class="bottom-sheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-header">
+                <h3>👥 Tus Grupos</h3>
+                <button class="sheet-close" data-close-modal="modal-group-switcher">&times;</button>
+            </div>
+            <div id="groups-switcher-list" class="groups-switcher-list"></div>
+            <hr class="sheet-divider">
+            <button type="button" class="btn-primary-large" id="btn-launch-new-group-wizard">
+                ➕ Crear un Nuevo Grupo desde cero
+            </button>
+        </div>
+    </div>
+
+    <!-- ======================================================================
+         MODAL: COMPARTIR WEB Y GRUPO POR WHATSAPP (ENLACE CORTO + MENSAJE EDITABLE)
+         ====================================================================== -->
+    <div id="modal-share-group" class="modal-overlay hidden">
+        <div class="bottom-sheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-header">
+                <h3>📲 Compartir Grupo</h3>
+                <button class="sheet-close" data-close-modal="modal-share-group">&times;</button>
+            </div>
+
+            <!-- Aviso inteligente si aún se está abriendo como archivo local -->
+            <div id="local-url-warning-box" class="local-warning-box hidden">
+                <div style="font-size:12px; font-weight:800; color:#f7b731; margin-bottom:4px;">
+                    🌐 Dominio web del enlace
+                </div>
+                <p style="font-size:11px; color:#d8deed; line-height:1.45; margin-bottom:8px;">
+                    Dirección pública donde tus amigos abrirán la app sin tener que crearse ninguna cuenta externa:
+                </p>
+                <div class="add-member-inline">
+                    <input type="text" id="custom-public-url-input">
+                    <button type="button" class="btn-add-inline" id="btn-save-public-url">Guardar</button>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 10px;">
+                <label>🔗 Enlace corto del grupo</label>
+                <div class="add-member-inline">
+                    <input type="text" id="share-generated-link-input" readonly style="font-size:12px; color:#ff9a3c; font-weight:700;">
+                    <button type="button" class="btn-add-inline" id="btn-copy-magic-link">📋 Copiar</button>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 10px;">
+                <label>💬 Mensaje para WhatsApp (puedes editarlo a tu gusto)</label>
+                <textarea id="share-custom-message-input" rows="3" style="width:100%; background:var(--bg-input); border:1px solid var(--border-glass); border-radius:12px; padding:10px 12px; color:var(--text-primary); font-family:inherit; font-size:13px; resize:vertical;"></textarea>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px; margin-top: 14px;">
+                <button type="button" class="btn-primary-large" id="btn-send-wa-direct" style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); box-shadow: 0 6px 20px rgba(37, 211, 102, 0.3);">
+                    📲 Enviar por WhatsApp
+                </button>
+                <button type="button" class="btn-secondary-block" id="btn-native-share" style="text-align:center;">
+                    📤 Compartir solo el enlace...
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="script.js"></script>
+</body>
+</html>
