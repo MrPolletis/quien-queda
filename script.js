@@ -138,60 +138,119 @@ function getOtpAuthUri(username, secretBase32) {
 }
 
 // ==========================================================================
-// REGISTRO GLOBAL DE @USUARIOS EN SUPABASE (PARA GARANTIZAR @ IRREPETIBLE)
+// NUBE MULTI-DISPOSITIVO EN SUPABASE (SINCRONIZA @USUARIOS Y GRUPOS PC <-> MÓVIL)
 // ==========================================================================
-const CLOUD_ACCOUNTS_KEY = '__ACCOUNTS_REGISTRY__';
+async function upsertSupabaseCloudRecord(recordKey, metadataObj) {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+    const cleanKey = String(recordKey).toLowerCase().replace(/[^a-z0-9_.-]/g, '');
+    const email = `${cleanKey}@quienqueda.app`;
+    const secretPass = `qq_record_${cleanKey}_#2026`;
+    const headers = {
+        'apikey': SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json'
+    };
 
-async function fetchCloudAccountsRegistry() {
-    if (!supabaseClient) return {};
     try {
-        const { data, error } = await supabaseClient
-            .from('quien_queda_groups')
-            .select('group_data')
-            .eq('invite_code', CLOUD_ACCOUNTS_KEY)
-            .maybeSingle();
-        if (!error && data && data.group_data && data.group_data.accounts) {
-            return data.group_data.accounts;
+        // 1. Intentar autenticar registro existente y actualizar sus metadatos
+        const loginRes = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ email, password: secretPass })
+        });
+
+        if (loginRes.ok) {
+            const loginData = await loginRes.json();
+            if (loginData && loginData.access_token) {
+                const updateRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+                    method: 'PUT',
+                    headers: {
+                        ...headers,
+                        'Authorization': `Bearer ${loginData.access_token}`
+                    },
+                    body: JSON.stringify({ data: metadataObj })
+                });
+                if (updateRes.ok) {
+                    setCloudBadge(true);
+                    const updated = await updateRes.json();
+                    return updated.user_metadata || metadataObj;
+                }
+            }
+        }
+
+        // 2. Si no existe aún, crearlo en Supabase
+        const signUpRes = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                email,
+                password: secretPass,
+                data: metadataObj
+            })
+        });
+        if (signUpRes.ok) {
+            setCloudBadge(true);
+            const created = await signUpRes.json();
+            return (created.user && created.user.user_metadata) || metadataObj;
         }
     } catch (e) {
-        // Modo local
+        // Modo offline
     }
-    return {};
+    return null;
+}
+
+async function fetchSupabaseCloudRecord(recordKey) {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+    const cleanKey = String(recordKey).toLowerCase().replace(/[^a-z0-9_.-]/g, '');
+    const email = `${cleanKey}@quienqueda.app`;
+    const secretPass = `qq_record_${cleanKey}_#2026`;
+    const headers = {
+        'apikey': SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json'
+    };
+
+    try {
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ email, password: secretPass })
+        });
+        if (res.ok) {
+            setCloudBadge(true);
+            const data = await res.json();
+            if (data && data.user && data.user.user_metadata) {
+                return data.user.user_metadata;
+            }
+        }
+    } catch (e) {
+        // Modo offline
+    }
+    return null;
 }
 
 async function saveAccountToCloudRegistry(account) {
     if (!account || !account.username) return;
     const u = normalizeUsername(account.username);
     if (!appState.accounts) appState.accounts = {};
+
+    const myCodes = (appState.groups || [])
+        .map(g => g.inviteCode)
+        .filter(Boolean);
+    account.groupCodes = Array.from(new Set([...(account.groupCodes || []), ...myCodes]));
     appState.accounts[u] = account;
 
-    if (!supabaseClient) return;
-    try {
-        const remoteAccounts = await fetchCloudAccountsRegistry();
-        remoteAccounts[u] = account;
-        await supabaseClient
-            .from('quien_queda_groups')
-            .upsert({
-                invite_code: CLOUD_ACCOUNTS_KEY,
-                name: 'ACCOUNTS_REGISTRY',
-                group_data: { accounts: remoteAccounts },
-                updated_at: new Date().toISOString()
-            }, { onConflict: 'invite_code' });
-    } catch (e) {
-        // Modo local
-    }
+    await upsertSupabaseCloudRecord(`usr_${u}`, { account });
 }
 
 async function findAccountByUsername(username) {
     const u = normalizeUsername(username);
     if (!u) return null;
 
-    // 1. Buscar en cuentas globales de la nube si está online
-    const cloudRegistry = await fetchCloudAccountsRegistry();
-    if (cloudRegistry && cloudRegistry[u]) {
+    // 1. Buscar en Supabase Cloud (funciona entre PC y cualquier móvil)
+    const cloudMeta = await fetchSupabaseCloudRecord(`usr_${u}`);
+    if (cloudMeta && cloudMeta.account && cloudMeta.account.username) {
         if (!appState.accounts) appState.accounts = {};
-        appState.accounts[u] = cloudRegistry[u];
-        return cloudRegistry[u];
+        appState.accounts[u] = cloudMeta.account;
+        return cloudMeta.account;
     }
 
     // 2. Buscar en cuentas locales guardadas
@@ -305,47 +364,26 @@ function saveState(syncToCloud = true) {
     }
     if (syncToCloud) {
         pushActiveGroupToCloud();
+        if (appState.currentAccount) {
+            saveAccountToCloudRegistry(appState.currentAccount);
+        }
     }
 }
 
 async function pushActiveGroupToCloud() {
-    if (!supabaseClient) return;
     const group = getActiveGroup();
     if (!group || !group.inviteCode) return;
-
-    try {
-        const { error } = await supabaseClient
-            .from('quien_queda_groups')
-            .upsert({
-                invite_code: group.inviteCode.toUpperCase(),
-                name: group.name,
-                group_data: group,
-                updated_at: new Date().toISOString()
-            }, { onConflict: 'invite_code' });
-
-        if (!error) setCloudBadge(true);
-    } catch (e) {
-        // Silencioso en modo local
-    }
+    const cleanCode = group.inviteCode.trim().toLowerCase();
+    await upsertSupabaseCloudRecord(`grp_${cleanCode}`, { group_data: group });
 }
 
 async function fetchGroupFromCloudByCode(inviteCode) {
-    if (!supabaseClient || !inviteCode) return null;
-    try {
-        const cleanCode = inviteCode.trim().toUpperCase();
-        const { data, error } = await supabaseClient
-            .from('quien_queda_groups')
-            .select('group_data')
-            .eq('invite_code', cleanCode)
-            .maybeSingle();
-
-        if (!error && data && data.group_data) {
-            setCloudBadge(true);
-            normalizeGroupStructure(data.group_data);
-            return data.group_data;
-        }
-    } catch (e) {
-        // Modo local
+    if (!inviteCode) return null;
+    const cleanCode = inviteCode.trim().toLowerCase();
+    const meta = await fetchSupabaseCloudRecord(`grp_${cleanCode}`);
+    if (meta && meta.group_data && meta.group_data.name) {
+        normalizeGroupStructure(meta.group_data);
+        return meta.group_data;
     }
     return null;
 }
@@ -2068,10 +2106,24 @@ function setupEventListeners() {
         switchAuthView('totp_setup');
     }
 
-    function completeAccountLogin(account) {
+    async function completeAccountLogin(account) {
         appState.currentAccount = account;
         if (!appState.accounts) appState.accounts = {};
         appState.accounts[normalizeUsername(account.username)] = account;
+
+        // Descargar automáticamente de la nube los grupos asociados a este @usuario (ej. al entrar desde el móvil)
+        if ((!appState.groups || appState.groups.length === 0) && Array.isArray(account.groupCodes)) {
+            for (const code of account.groupCodes) {
+                const cloudG = await fetchGroupFromCloudByCode(code);
+                if (cloudG) {
+                    const exists = appState.groups.some(g => g.inviteCode === cloudG.inviteCode || g.id === cloudG.id);
+                    if (!exists) appState.groups.push(cloudG);
+                }
+            }
+            if (appState.groups.length > 0 && !appState.activeGroupId) {
+                appState.activeGroupId = appState.groups[0].id;
+            }
+        }
 
         const group = getActiveGroup();
         if (group) {
@@ -2095,7 +2147,7 @@ function setupEventListeners() {
             return;
         }
 
-        saveState(false);
+        saveState();
         renderApp();
         showToast(`✅ Sesión iniciada: ${formatHandle(account.username)}`);
     }
@@ -3236,6 +3288,14 @@ function switchMainTab(targetId) {
 document.addEventListener('DOMContentLoaded', async () => {
     loadState();
     setupEventListeners();
+
+    // Si ya había una cuenta o grupo creados en el PC antes, sincronizarlos automáticamente con la nube
+    if (appState.currentAccount && appState.currentAccount.username) {
+        saveAccountToCloudRegistry(appState.currentAccount);
+    }
+    if (getActiveGroup()) {
+        pushActiveGroupToCloud();
+    }
 
     const params = new URLSearchParams(window.location.search);
     const shortKeyParam = params.get('k');
