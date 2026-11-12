@@ -274,6 +274,330 @@ async function findAccountByUsername(username) {
     return null;
 }
 
+// ==========================================================================
+// BANDEJA DE ENTRADA / CORREO INTERNO DE NOTIFICACIONES (SINCRONIZADO EN NUBE)
+// ==========================================================================
+function getMyInbox() {
+    if (!appState.currentAccount) return [];
+    if (!Array.isArray(appState.currentAccount.inbox)) {
+        appState.currentAccount.inbox = [];
+    }
+    return appState.currentAccount.inbox;
+}
+
+function getDismissedNotifIds() {
+    if (!appState.currentAccount) return [];
+    if (!Array.isArray(appState.currentAccount.dismissedNotifIds)) {
+        appState.currentAccount.dismissedNotifIds = [];
+    }
+    return appState.currentAccount.dismissedNotifIds;
+}
+
+function formatRelativeTime(isoStr) {
+    if (!isoStr) return 'Reciente';
+    const ts = new Date(isoStr).getTime();
+    if (isNaN(ts)) return 'Reciente';
+    const diffSec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+    if (diffSec < 60) return 'Ahora mismo';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `Hace ${diffMin} min`;
+    const diffHours = Math.floor(diffMin / 60);
+    if (diffHours < 24) return `Hace ${diffHours} h`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays === 1) return 'Ayer';
+    if (diffDays < 7) return `Hace ${diffDays} días`;
+    return formatHumanDate(isoStr.slice(0, 10));
+}
+
+async function deliverInboxNotification(targetUsername, notifObj, showToastIfCurrent = false) {
+    if (!notifObj || !notifObj.id) return;
+    const cleanTarget = targetUsername ? normalizeUsername(targetUsername) : '';
+    const myUsername = appState.currentAccount ? normalizeUsername(appState.currentAccount.username) : '';
+
+    const fullNotif = {
+        id: notifObj.id,
+        type: notifObj.type || 'info',
+        icon: notifObj.icon || '📬',
+        title: notifObj.title || 'Notificación',
+        body: notifObj.body || '',
+        createdAt: notifObj.createdAt || new Date().toISOString(),
+        read: false,
+        groupCode: notifObj.groupCode || '',
+        groupId: notifObj.groupId || '',
+        groupName: notifObj.groupName || '',
+        memberId: notifObj.memberId || '',
+        planId: notifObj.planId || '',
+        statsTab: notifObj.statsTab || 'panel-ranking'
+    };
+
+    // 1. Si va dirigido al usuario activo actual (o no se especificó otro @usuario), entregar en su buzón local
+    if (!cleanTarget || cleanTarget === myUsername) {
+        const inbox = getMyInbox();
+        const dismissed = getDismissedNotifIds();
+        if (!inbox.some(n => n.id === fullNotif.id) && !dismissed.includes(fullNotif.id)) {
+            inbox.unshift(fullNotif);
+            if (inbox.length > 25) inbox.length = 25;
+            saveState(false);
+            updateInboxBadges();
+            if (showToastIfCurrent) {
+                showToast(`${fullNotif.icon} ${fullNotif.title}`);
+            }
+        }
+    }
+
+    // 2. Si tiene @usuario destino, sincronizar también con su buzón en la nube (`inb_<username>`)
+    if (cleanTarget) {
+        try {
+            const cloudMeta = await fetchSupabaseCloudRecord(`inb_${cleanTarget}`);
+            const remoteInbox = (cloudMeta && Array.isArray(cloudMeta.inbox)) ? cloudMeta.inbox : [];
+            const remoteDismissed = (cloudMeta && Array.isArray(cloudMeta.dismissedNotifIds)) ? cloudMeta.dismissedNotifIds : [];
+            if (!remoteInbox.some(n => n.id === fullNotif.id) && !remoteDismissed.includes(fullNotif.id)) {
+                remoteInbox.unshift(fullNotif);
+                if (remoteInbox.length > 25) remoteInbox.length = 25;
+                await upsertSupabaseCloudRecord(`inb_${cleanTarget}`, {
+                    inbox: remoteInbox,
+                    dismissedNotifIds: remoteDismissed
+                });
+            }
+        } catch (e) {
+            // Modo offline
+        }
+    }
+}
+
+async function syncMyInboxFromCloud(silent = true) {
+    if (!appState.currentAccount || !appState.currentAccount.username) return;
+    const myUsername = normalizeUsername(appState.currentAccount.username);
+    if (!myUsername) return;
+
+    try {
+        const cloudMeta = await fetchSupabaseCloudRecord(`inb_${myUsername}`);
+        const localInbox = getMyInbox();
+        const dismissed = getDismissedNotifIds();
+
+        if (cloudMeta && Array.isArray(cloudMeta.inbox)) {
+            let newUnreadCount = 0;
+            cloudMeta.inbox.forEach(remoteItem => {
+                if (!remoteItem || !remoteItem.id) return;
+                if (dismissed.includes(remoteItem.id)) return;
+                const existing = localInbox.find(loc => loc.id === remoteItem.id);
+                if (!existing) {
+                    localInbox.push(remoteItem);
+                    if (!remoteItem.read) newUnreadCount += 1;
+                }
+            });
+
+            localInbox.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+            if (localInbox.length > 25) localInbox.length = 25;
+
+            saveState(false);
+            updateInboxBadges();
+
+            if (!silent && newUnreadCount > 0) {
+                showToast(`📬 Tienes ${newUnreadCount} mensaje(s) nuevo(s) en tu bandeja`);
+            }
+        } else if (localInbox.length > 0) {
+            await upsertSupabaseCloudRecord(`inb_${myUsername}`, {
+                inbox: localInbox,
+                dismissedNotifIds: dismissed
+            });
+        }
+    } catch (e) {
+        // Modo offline
+    }
+}
+
+async function persistMyInboxToCloud() {
+    if (!appState.currentAccount || !appState.currentAccount.username) return;
+    const myUsername = normalizeUsername(appState.currentAccount.username);
+    await upsertSupabaseCloudRecord(`inb_${myUsername}`, {
+        inbox: getMyInbox(),
+        dismissedNotifIds: getDismissedNotifIds()
+    });
+}
+
+function updateInboxBadges() {
+    const inbox = getMyInbox();
+    const unreadCount = inbox.filter(n => !n.read).length;
+
+    const headerBadge = document.getElementById('notif-pending-count');
+    if (headerBadge) {
+        headerBadge.textContent = unreadCount;
+        headerBadge.classList.toggle('hidden', unreadCount === 0);
+    }
+
+    const onboardingBadge = document.getElementById('onboarding-inbox-count');
+    if (onboardingBadge) {
+        onboardingBadge.textContent = unreadCount;
+        onboardingBadge.classList.toggle('hidden', unreadCount === 0);
+    }
+
+    const onboardingBanner = document.getElementById('onboarding-inbox-banner');
+    if (onboardingBanner) {
+        const pendingInvite = inbox.find(n => n.type === 'group_invite' && !n.read) || inbox[0];
+        if (pendingInvite && unreadCount > 0) {
+            document.getElementById('onboarding-inbox-title').textContent = pendingInvite.title;
+            document.getElementById('onboarding-inbox-sub').textContent = pendingInvite.body;
+            onboardingBanner.classList.remove('hidden');
+        } else {
+            onboardingBanner.classList.add('hidden');
+        }
+    }
+}
+
+function openInboxModal() {
+    renderInboxModal();
+    document.getElementById('modal-inbox').classList.remove('hidden');
+}
+
+function renderInboxModal() {
+    const inbox = getMyInbox();
+    const accLabel = document.getElementById('inbox-account-label');
+    if (accLabel && appState.currentAccount) {
+        accLabel.textContent = `Buzón de ${formatHandle(appState.currentAccount.username)}`;
+    }
+
+    const listEl = document.getElementById('inbox-messages-list');
+    if (!listEl) return;
+
+    if (inbox.length === 0) {
+        listEl.innerHTML = `
+            <div class="empty-state" style="padding: 28px 16px;">
+                <div class="empty-icon">📭</div>
+                <div class="empty-title">Tu bandeja está vacía</div>
+                <div class="empty-sub">Aquí recibirás invitaciones a grupos y avisos cuando alcances el nº1 en algún ranking.</div>
+            </div>
+        `;
+        return;
+    }
+
+    listEl.innerHTML = inbox.map(item => {
+        let actionBtnHtml = '';
+        if (item.type === 'group_invite') {
+            actionBtnHtml = `
+                <button type="button" class="btn-inbox-action" data-inbox-action="accept-invite" data-notif-id="${escapeHtml(item.id)}">
+                    ✅ Aceptar e ir al grupo
+                </button>
+            `;
+        } else if (item.type === 'rank_first') {
+            actionBtnHtml = `
+                <button type="button" class="btn-inbox-action" data-inbox-action="view-ranking" data-notif-id="${escapeHtml(item.id)}">
+                    🏆 Ver clasificación
+                </button>
+            `;
+        } else if (item.type === 'hangout_pending') {
+            actionBtnHtml = `
+                <button type="button" class="btn-inbox-action" data-inbox-action="confirm-hangout" data-notif-id="${escapeHtml(item.id)}">
+                    🔔 Pasar lista
+                </button>
+            `;
+        } else {
+            actionBtnHtml = `<span></span>`;
+        }
+
+        return `
+            <div class="inbox-item ${item.read ? '' : 'unread'}" data-notif-card="${escapeHtml(item.id)}">
+                <div class="inbox-icon-box">${item.icon || '📬'}</div>
+                <div class="inbox-content">
+                    <div class="inbox-top-row">
+                        <div class="inbox-title">
+                            ${!item.read ? `<span class="inbox-unread-dot"></span>` : ''}
+                            <span>${escapeHtml(item.title)}</span>
+                        </div>
+                        <span class="inbox-time">${escapeHtml(formatRelativeTime(item.createdAt))}</span>
+                    </div>
+                    <div class="inbox-body">${escapeHtml(item.body)}</div>
+                    <div class="inbox-actions-row">
+                        ${actionBtnHtml}
+                        <button type="button" class="btn-inbox-dismiss" data-inbox-action="dismiss" data-notif-id="${escapeHtml(item.id)}" title="Borrar mensaje">✕</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Comprueba sin saturar si alguien se ha puesto 1º en alguno de los rankings del grupo
+function checkAndNotifyFirstPlaceRankings(group) {
+    if (!group || !Array.isArray(group.plans) || group.plans.length === 0) return;
+
+    const plansWithData = group.plans.filter(p => p.completed || (p.attendance && Object.keys(p.attendance).length > 0));
+    if (plansWithData.length === 0) return;
+
+    const stats = computeFullPeriodStats(plansWithData, group);
+    if (!group.lastNotifiedLeaders) {
+        group.lastNotifiedLeaders = {};
+    }
+
+    const activeUser = getActiveUser();
+    const myUsername = appState.currentAccount ? normalizeUsername(appState.currentAccount.username) : '';
+
+    const notifyMemberLeader = (memberObj, rankKey, notifPayload) => {
+        if (!memberObj) return;
+        const prevLeaderId = group.lastNotifiedLeaders[rankKey];
+        if (prevLeaderId === memberObj.id) return; // Ya era 1º, no repetir aviso
+
+        group.lastNotifiedLeaders[rankKey] = memberObj.id;
+        const memberUser = memberObj.username ? normalizeUsername(memberObj.username) : '';
+        const isCurrentActiveMember = activeUser && activeUser.id === memberObj.id;
+
+        if (memberUser) {
+            deliverInboxNotification(memberUser, notifPayload, memberUser === myUsername);
+        } else if (isCurrentActiveMember && myUsername) {
+            deliverInboxNotification(myUsername, notifPayload, true);
+        }
+    };
+
+    // 1. Nº1 en el Ranking General de Asistencia (MVP)
+    if (stats.mvp && stats.mvp.attended >= 1) {
+        const m = stats.mvp.member;
+        notifyMemberLeader(m, 'mvp', {
+            id: `rank1_mvp_${group.id}_${m.id}_${stats.mvp.attended}`,
+            type: 'rank_first',
+            icon: '🏆',
+            title: `¡Vas 1º en el Ranking de «${group.name}»!`,
+            body: `Lideras la clasificación de asistencia con un ${stats.mvp.rate}% (${stats.mvp.attended} quedadas) y ostentas el título «${group.customTitles.mvp}».`,
+            groupCode: group.inviteCode,
+            groupId: group.id,
+            groupName: group.name,
+            statsTab: 'panel-ranking'
+        });
+    }
+
+    // 2. Nº1 en Racha de Asistencia (mínimo 2 seguidas)
+    const topStreakObj = [...stats.memberStats].sort((a, b) => b.currentStreak - a.currentStreak)[0];
+    if (topStreakObj && topStreakObj.currentStreak >= 2) {
+        const m = topStreakObj.member;
+        notifyMemberLeader(m, 'streak', {
+            id: `rank1_streak_${group.id}_${m.id}_${topStreakObj.currentStreak}`,
+            type: 'rank_first',
+            icon: '🔥',
+            title: `¡1º en Racha de Asistencia en «${group.name}»!`,
+            body: `Llevas ${topStreakObj.currentStreak} quedadas seguidas asistiendo sin fallar y lideras la racha del grupo.`,
+            groupCode: group.inviteCode,
+            groupId: group.id,
+            groupName: group.name,
+            statsTab: 'panel-ranking'
+        });
+    }
+
+    // 3. Nº1 en el Fantasmetro (cuando tiene al menos 1 flake)
+    if (stats.topFlaker && stats.topFlaker.flakes >= 1) {
+        const m = stats.topFlaker.member;
+        notifyMemberLeader(m, 'flake', {
+            id: `rank1_flake_${group.id}_${m.id}_${stats.topFlaker.flakes}`,
+            type: 'rank_first',
+            icon: '👻',
+            title: `Nº1 del Fantasmetro en «${group.name}»`,
+            body: `Te has colocado 1º en el Fantasmetro del grupo (${stats.topFlaker.flakes} baja(s) de última hora) con el título «${group.customTitles.flake}».`,
+            groupCode: group.inviteCode,
+            groupId: group.id,
+            groupName: group.name,
+            statsTab: 'panel-pique'
+        });
+    }
+}
+
 // Estado temporal Onboarding
 let onboardingDraftPhoto = '';
 let onboardingDraftMembers = [];
@@ -700,16 +1024,15 @@ function getPlanLifecycleState(plan) {
 
 function checkPendingFinishedHangouts() {
     const group = getActiveGroup();
-    if (!group) return;
+    if (!group) {
+        updateInboxBadges();
+        return;
+    }
 
     const pendingPlans = group.plans.filter(p => getPlanLifecycleState(p) === 'pending_check');
     const banner = document.getElementById('finished-hangout-banner');
-    const badge = document.getElementById('notif-pending-count');
 
     if (pendingPlans.length > 0) {
-        badge.textContent = pendingPlans.length;
-        badge.classList.remove('hidden');
-
         const firstPending = pendingPlans[0];
         document.getElementById('finished-banner-title').textContent = `🔔 "${firstPending.title}" ha finalizado`;
         document.getElementById('finished-banner-sub').textContent = pendingPlans.length === 1
@@ -720,17 +1043,25 @@ function checkPendingFinishedHangouts() {
 
         if (!firstPending.notifiedFinish) {
             firstPending.notifiedFinish = true;
+            const myUsername = appState.currentAccount ? normalizeUsername(appState.currentAccount.username) : '';
+            deliverInboxNotification(myUsername, {
+                id: `hangout_fin_${firstPending.id}`,
+                type: 'hangout_pending',
+                icon: '🔔',
+                title: `Quedada finalizada: «${firstPending.title}»`,
+                body: `Confirma quiénes han asistido en «${group.name}» para actualizar el ranking y subir foto del recuerdo.`,
+                groupCode: group.inviteCode,
+                groupId: group.id,
+                groupName: group.name,
+                planId: firstPending.id
+            }, false);
             saveState(false);
-            if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification('🔔 ¿Quiénes han asistido?', {
-                    body: `La quedada "${firstPending.title}" ha terminado. Pasa lista y sube la foto del recuerdo.`
-                });
-            }
         }
     } else {
-        badge.classList.add('hidden');
         banner.classList.add('hidden');
     }
+
+    updateInboxBadges();
 }
 
 function toIsoDateString(dateObj) {
@@ -851,6 +1182,7 @@ function renderApp() {
     }
 
     if (authEl) authEl.classList.add('hidden');
+    updateInboxBadges();
 
     const group = getActiveGroup();
 
@@ -885,6 +1217,7 @@ function renderApp() {
 
     onboardingEl.classList.add('hidden');
     checkPendingFinishedHangouts();
+    checkAndNotifyFirstPlaceRankings(group);
     renderHeader();
     renderPlansView();
     renderStatsView();
@@ -2098,6 +2431,25 @@ function setupEventListeners() {
         if (!appState.accounts) appState.accounts = {};
         appState.accounts[normalizeUsername(account.username)] = account;
 
+        // Sincronizar la Bandeja de Entrada en la nube para este @usuario
+        await syncMyInboxFromCloud(false);
+
+        // Si entró mediante un link de invitación antes de iniciar sesión, dejar constancia en su Bandeja de Entrada
+        if (window._pendingLinkInvitedGroup) {
+            const invG = window._pendingLinkInvitedGroup;
+            await deliverInboxNotification(account.username, {
+                id: `inv_link_${invG.inviteCode || invG.id}`,
+                type: 'group_invite',
+                icon: '🔗',
+                title: `Invitación por enlace a «${invG.name}»`,
+                body: `Te han invitado mediante enlace al grupo «${invG.name}» (${(invG.members || []).length} integrantes). Pulsa para entrar y vincular tu perfil.`,
+                groupCode: invG.inviteCode || '',
+                groupId: invG.id || '',
+                groupName: invG.name || ''
+            }, false);
+            window._pendingLinkInvitedGroup = null;
+        }
+
         // Descargar automáticamente de la nube los grupos asociados a este @usuario (ej. al entrar desde el móvil)
         if ((!appState.groups || appState.groups.length === 0) && Array.isArray(account.groupCodes)) {
             for (const code of account.groupCodes) {
@@ -2335,16 +2687,28 @@ function setupEventListeners() {
 
     const addDraftMember = () => {
         const input = document.getElementById('onboarding-member-name');
+        const userInp = document.getElementById('onboarding-member-username');
         const name = input.value.trim();
-        if (!name) return;
+        const rawUser = userInp ? userInp.value.trim() : '';
+        const username = normalizeUsername(rawUser);
+        if (!name && !username) return;
+        const finalName = name || username;
+
+        if (username && onboardingDraftMembers.some(m => normalizeUsername(m.username) === username)) {
+            showToast(`⚠️ Ya has añadido a ${formatHandle(username)}`);
+            return;
+        }
+
         const avatar = DEFAULT_AVATARS[onboardingDraftMembers.length % DEFAULT_AVATARS.length];
         onboardingDraftMembers.push({
             id: 'u_' + Date.now() + '_' + Math.floor(Math.random() * 999),
-            name,
+            name: finalName,
+            username: username || '',
             avatar,
             isAdmin: onboardingDraftMembers.length === 0 // El primero es Admin por defecto
         });
         input.value = '';
+        if (userInp) userInp.value = '';
         input.focus();
         renderOnboardingDraftMembers();
     };
@@ -2356,6 +2720,15 @@ function setupEventListeners() {
             addDraftMember();
         }
     });
+    const onboardingUserInp = document.getElementById('onboarding-member-username');
+    if (onboardingUserInp) {
+        onboardingUserInp.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addDraftMember();
+            }
+        });
+    }
 
     document.getElementById('onboarding-members-chips').addEventListener('click', e => {
         const btn = e.target.closest('[data-remove-draft-idx]');
@@ -2368,20 +2741,24 @@ function setupEventListeners() {
         renderOnboardingDraftMembers();
     });
 
-    document.getElementById('form-onboarding-group').addEventListener('submit', e => {
+    document.getElementById('form-onboarding-group').addEventListener('submit', async e => {
         e.preventDefault();
         const groupName = document.getElementById('onboarding-group-name').value.trim();
         const groupDesc = document.getElementById('onboarding-group-desc').value.trim();
 
         const pendingName = document.getElementById('onboarding-member-name').value.trim();
-        if (pendingName) {
+        const pendingUserEl = document.getElementById('onboarding-member-username');
+        const pendingUser = pendingUserEl ? normalizeUsername(pendingUserEl.value) : '';
+        if (pendingName || pendingUser) {
             onboardingDraftMembers.push({
                 id: 'u_' + Date.now(),
-                name: pendingName,
+                name: pendingName || pendingUser,
+                username: pendingUser || '',
                 avatar: DEFAULT_AVATARS[onboardingDraftMembers.length % DEFAULT_AVATARS.length],
                 isAdmin: onboardingDraftMembers.length === 0
             });
             document.getElementById('onboarding-member-name').value = '';
+            if (pendingUserEl) pendingUserEl.value = '';
         }
 
         if (onboardingDraftMembers.length === 0) {
@@ -2431,8 +2808,24 @@ function setupEventListeners() {
         renderApp();
         showToast(`🎉 ¡Grupo "${groupName}" creado!`);
 
-        if ('Notification' in window && Notification.permission === 'default') {
-            Notification.requestPermission();
+        // Enviar notificación a la Bandeja de Entrada de los amigos añadidos con @usuario
+        const myHandle = appState.currentAccount ? formatHandle(appState.currentAccount.username) : 'Un amigo';
+        const myClean = appState.currentAccount ? normalizeUsername(appState.currentAccount.username) : '';
+        for (const mem of newGroup.members) {
+            const targetU = mem.username ? normalizeUsername(mem.username) : '';
+            if (targetU && targetU !== myClean) {
+                deliverInboxNotification(targetU, {
+                    id: `inv_usr_${newGroup.inviteCode}_${targetU}`,
+                    type: 'group_invite',
+                    icon: '📩',
+                    title: `Te han añadido a «${newGroup.name}»`,
+                    body: `${myHandle} te ha añadido al grupo «${newGroup.name}» como "${mem.name}". Pulsa para aceptar y entrar al grupo.`,
+                    groupCode: newGroup.inviteCode,
+                    groupId: newGroup.id,
+                    groupName: newGroup.name,
+                    memberId: mem.id
+                }, false);
+            }
         }
     });
 
@@ -2717,19 +3110,169 @@ function setupEventListeners() {
         renderApp();
     });
 
-    // --- 6. CIERRE DE QUEDADA: PASE DE LISTA + PUNTUALIDAD + FOTO DE PRUEBA ---
+    // --- 6. CIERRE DE QUEDADA Y BANDEJA DE ENTRADA (CORREO INTERNO) ---
     document.getElementById('btn-finished-banner-open').addEventListener('click', () => {
         const planId = document.getElementById('finished-hangout-banner').dataset.planId;
         if (planId) openConfirmAttendanceModal(planId);
     });
 
-    document.getElementById('open-notifications-btn').addEventListener('click', () => {
-        const group = getActiveGroup();
-        if (!group) return;
-        const pending = group.plans.find(p => getPlanLifecycleState(p) === 'pending_check');
-        if (pending) openConfirmAttendanceModal(pending.id);
-        else showToast('🔔 No tienes quedadas pendientes de pasar lista');
-    });
+    const handleOpenInbox = async () => {
+        openInboxModal();
+        await syncMyInboxFromCloud(true);
+        renderInboxModal();
+    };
+
+    document.getElementById('open-notifications-btn').addEventListener('click', handleOpenInbox);
+    const openInboxOnbBtn = document.getElementById('open-inbox-onboarding-btn');
+    if (openInboxOnbBtn) openInboxOnbBtn.addEventListener('click', handleOpenInbox);
+    const openInboxBannerBtn = document.getElementById('btn-onboarding-open-inbox');
+    if (openInboxBannerBtn) openInboxBannerBtn.addEventListener('click', handleOpenInbox);
+
+    const markAllReadBtn = document.getElementById('btn-mark-all-inbox-read');
+    if (markAllReadBtn) {
+        markAllReadBtn.addEventListener('click', async () => {
+            const inbox = getMyInbox();
+            inbox.forEach(n => { n.read = true; });
+            saveState(false);
+            updateInboxBadges();
+            renderInboxModal();
+            await persistMyInboxToCloud();
+            showToast('✓ Bandeja marcada como leída');
+        });
+    }
+
+    const clearInboxBtn = document.getElementById('btn-clear-inbox');
+    if (clearInboxBtn) {
+        clearInboxBtn.addEventListener('click', async () => {
+            const inbox = getMyInbox();
+            const dismissed = getDismissedNotifIds();
+            inbox.forEach(n => {
+                if (n.id && !dismissed.includes(n.id)) dismissed.push(n.id);
+            });
+            appState.currentAccount.inbox = [];
+            saveState(false);
+            updateInboxBadges();
+            renderInboxModal();
+            await persistMyInboxToCloud();
+            showToast('🗑️ Bandeja de entrada vaciada');
+        });
+    }
+
+    const inboxListEl = document.getElementById('inbox-messages-list');
+    if (inboxListEl) {
+        inboxListEl.addEventListener('click', async e => {
+            const actionBtn = e.target.closest('[data-inbox-action]');
+            if (!actionBtn) {
+                const cardEl = e.target.closest('[data-notif-card]');
+                if (cardEl) {
+                    const cardId = cardEl.getAttribute('data-notif-card');
+                    const item = getMyInbox().find(n => n.id === cardId);
+                    if (item && !item.read) {
+                        item.read = true;
+                        saveState(false);
+                        updateInboxBadges();
+                        renderInboxModal();
+                        persistMyInboxToCloud();
+                    }
+                }
+                return;
+            }
+
+            const action = actionBtn.getAttribute('data-inbox-action');
+            const notifId = actionBtn.getAttribute('data-notif-id');
+            const inbox = getMyInbox();
+            const item = inbox.find(n => n.id === notifId);
+            if (!item) return;
+
+            if (action === 'dismiss') {
+                const dismissed = getDismissedNotifIds();
+                if (!dismissed.includes(notifId)) dismissed.push(notifId);
+                appState.currentAccount.inbox = inbox.filter(n => n.id !== notifId);
+                saveState(false);
+                updateInboxBadges();
+                renderInboxModal();
+                await persistMyInboxToCloud();
+                return;
+            }
+
+            item.read = true;
+            saveState(false);
+            updateInboxBadges();
+            persistMyInboxToCloud();
+
+            if (action === 'accept-invite') {
+                let targetGroup = appState.groups.find(
+                    g => (item.groupCode && g.inviteCode && g.inviteCode.toUpperCase() === item.groupCode.toUpperCase()) || (item.groupId && g.id === item.groupId)
+                );
+
+                if (!targetGroup && item.groupCode) {
+                    showToast('⏳ Cargando grupo...');
+                    targetGroup = await fetchGroupFromCloudByCode(item.groupCode);
+                    if (targetGroup) {
+                        appState.groups.push(targetGroup);
+                    }
+                }
+
+                document.getElementById('modal-inbox').classList.add('hidden');
+
+                if (!targetGroup) {
+                    showToast('⚠️ No se pudo encontrar el grupo en la nube');
+                    renderInboxModal();
+                    return;
+                }
+
+                appState.activeGroupId = targetGroup.id;
+                const myAcc = appState.currentAccount;
+                const myUsername = myAcc ? normalizeUsername(myAcc.username) : '';
+
+                let myMember = targetGroup.members.find(
+                    m => (m.username && normalizeUsername(m.username) === myUsername) || (item.memberId && m.id === item.memberId)
+                );
+
+                if (myMember && myAcc) {
+                    myMember.username = myAcc.username;
+                    myMember.password = myAcc.password;
+                    myMember.totpSecret = myAcc.totpSecret || '';
+                    appState.activeUserId = myMember.id;
+                    saveState();
+                    renderApp();
+                    showToast(`🎉 ¡Unido a "${targetGroup.name}" como ${myMember.name}!`);
+                } else {
+                    saveState();
+                    renderApp();
+                    openWhoAreYouModal();
+                    showToast(`👋 Elige o vincula tu nombre en "${targetGroup.name}"`);
+                }
+                return;
+            }
+
+            if (action === 'view-ranking') {
+                if (item.groupId && appState.groups.some(g => g.id === item.groupId)) {
+                    appState.activeGroupId = item.groupId;
+                }
+                document.getElementById('modal-inbox').classList.add('hidden');
+                switchMainTab('view-stats');
+                const targetPanelId = item.statsTab || 'panel-ranking';
+                const statsTabs = document.getElementById('stats-section-tabs');
+                if (statsTabs) {
+                    statsTabs.querySelectorAll('.stats-subnav-btn').forEach(b => {
+                        b.classList.toggle('active', b.getAttribute('data-stats-panel') === targetPanelId);
+                    });
+                    document.querySelectorAll('#view-stats .stats-subpanel').forEach(panel => {
+                        panel.classList.toggle('hidden', panel.id !== targetPanelId);
+                    });
+                }
+                return;
+            }
+
+            if (action === 'confirm-hangout') {
+                document.getElementById('modal-inbox').classList.add('hidden');
+                if (item.planId) {
+                    openConfirmAttendanceModal(item.planId);
+                }
+            }
+        });
+    }
 
     document.getElementById('confirm-attendance-members-list').addEventListener('click', e => {
         const btn = e.target.closest('[data-action="confirm-row-toggle"]');
@@ -3070,7 +3613,7 @@ function setupEventListeners() {
         });
     });
 
-    document.getElementById('form-add-member').addEventListener('submit', e => {
+    document.getElementById('form-add-member').addEventListener('submit', async e => {
         e.preventDefault();
         const name = document.getElementById('member-name-input').value.trim();
         const usernameInputEl = document.getElementById('member-username-input');
@@ -3102,7 +3645,24 @@ function setupEventListeners() {
         document.getElementById('form-add-member').reset();
         document.getElementById('modal-add-member').classList.add('hidden');
         renderApp();
-        showToast(username ? `👥 ${name} añadido y reservado para ${formatHandle(username)}` : `👥 ${name} añadido (vinculará su @usuario al entrar)`);
+
+        if (username) {
+            const myHandle = appState.currentAccount ? formatHandle(appState.currentAccount.username) : 'Un amigo';
+            await deliverInboxNotification(username, {
+                id: `inv_usr_${group.inviteCode}_${username}`,
+                type: 'group_invite',
+                icon: '📩',
+                title: `Te han añadido a «${group.name}»`,
+                body: `${myHandle} te ha añadido al grupo «${group.name}» como "${name}". Pulsa para aceptar y entrar al grupo.`,
+                groupCode: group.inviteCode,
+                groupId: group.id,
+                groupName: group.name,
+                memberId: newMember.id
+            }, false);
+            showToast(`📩 ${name} añadido y notificación enviada a ${formatHandle(username)}`);
+        } else {
+            showToast(`👥 ${name} añadido (vinculará su @usuario al entrar)`);
+        }
     });
 
     // --- 10. COMPARTIR WEB Y GRUPO POR WHATSAPP ---
@@ -3293,6 +3853,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Si ya había una cuenta o grupo creados en el PC antes, sincronizarlos automáticamente con la nube
     if (appState.currentAccount && appState.currentAccount.username) {
         saveAccountToCloudRegistry(appState.currentAccount);
+        syncMyInboxFromCloud(true);
     }
     if (getActiveGroup()) {
         pushActiveGroupToCloud();
@@ -3325,11 +3886,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         appState.activeGroupId = importedGroup.id;
         appState.activeUserId = importedGroup.members[0]?.id || null;
         saveState(false);
+
+        if (appState.currentAccount && appState.currentAccount.username) {
+            await deliverInboxNotification(appState.currentAccount.username, {
+                id: `inv_link_${importedGroup.inviteCode || importedGroup.id}`,
+                type: 'group_invite',
+                icon: '🔗',
+                title: `Invitación por enlace a «${importedGroup.name}»`,
+                body: `Has abierto una invitación para unirte al grupo «${importedGroup.name}» (${(importedGroup.members || []).length} integrantes). Pulsa para vincular tu perfil.`,
+                groupCode: importedGroup.inviteCode || '',
+                groupId: importedGroup.id || '',
+                groupName: importedGroup.name || ''
+            }, true);
+        } else {
+            window._pendingLinkInvitedGroup = importedGroup;
+        }
     }
 
     renderApp();
     if ((shortKeyParam || codeParam) && getActiveGroup() && appState.currentAccount) {
         openWhoAreYouModal();
     }
-    setInterval(checkPendingFinishedHangouts, 30000);
+    setInterval(() => {
+        checkPendingFinishedHangouts();
+        syncMyInboxFromCloud(true);
+    }, 30000);
 });
