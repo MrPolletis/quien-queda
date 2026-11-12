@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#0b0d13">
+    <meta name="theme-color" content="#0b0e14">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta property="og:title" content="Quién queda? — Crea tu grupo y organiza quedadas" />
-    <meta property="og:description" content="Crea el grupo con tus amigos, propón día, hora y lugar, usa la ruleta, el excusómetro y descubre las estadísticas y la cápsula del tiempo." />
+    <meta property="og:title" content="Quién queda? — Tus quedadas en grupo" />
+    <meta property="og:description" content="Organiza planes con tus amigos, votad lugar y hora, y llevad las estadísticas del grupo." />
     <title>Quién queda?</title>
     <link rel="manifest" href="manifest.json">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -25,41 +25,39 @@
         <section id="auth-screen" class="onboarding-screen hidden">
             <div class="onboarding-scroll">
                 <div class="onboarding-brand">
-                    <span class="onboarding-badge">CUENTA PERSONAL</span>
-                    <h1>👤 Tu @usuario</h1>
-                    <p>Crea tu @usuario único con contraseña. Cuando entres al link de WhatsApp podrás vincular tu nombre del grupo y recuperar tu cuenta con Authenticator si olvidas la clave.</p>
+                    <span class="onboarding-badge">Quién queda?</span>
+                    <h1>Tu cuenta</h1>
+                    <p>Entra con tu @usuario o créate uno en segundos para unirte a tu grupo.</p>
                 </div>
 
                 <!-- Pestañas: Crear Cuenta / Iniciar Sesión -->
-                <div class="period-mode-tabs" id="auth-mode-tabs" style="margin-bottom: 12px;">
-                    <button type="button" class="period-mode-btn active" data-auth-tab="register">➕ Crear Cuenta</button>
-                    <button type="button" class="period-mode-btn" data-auth-tab="login">🔑 Iniciar Sesión</button>
+                <div class="segmented-control" id="auth-mode-tabs">
+                    <button type="button" class="period-mode-btn active" data-auth-tab="register">Crear cuenta</button>
+                    <button type="button" class="period-mode-btn" data-auth-tab="login">Iniciar sesión</button>
                 </div>
 
                 <!-- FORMULARIO 1: CREAR CUENTA (@USUARIO IRREPETIBLE + CONTRASEÑA) -->
                 <form id="form-auth-register" class="onboarding-card sheet-form">
-                    <div class="card-section-title">Crear nuevo @usuario</div>
-
                     <div class="form-group">
-                        <label>🏷️ Nombre de usuario único (irrepetible)</label>
-                        <div style="display:flex; align-items:center; background:#0f121b; border:1px solid var(--border-subtle); border-radius:11px; padding-left:12px;">
-                            <span style="color:var(--accent-primary); font-weight:900; font-size:15px;">@</span>
-                            <input type="text" id="reg-username-input" required maxlength="20" autocomplete="username" style="border:none; background:transparent; padding-left:4px; text-transform:lowercase;">
+                        <label>Nombre de usuario único</label>
+                        <div class="handle-input-wrap">
+                            <span class="handle-at">@</span>
+                            <input type="text" id="reg-username-input" required maxlength="20" autocomplete="username">
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label>👤 Tu Nombre o Apodo en el grupo</label>
+                        <label>Tu nombre o apodo</label>
                         <input type="text" id="reg-name-input" required maxlength="25" autocomplete="name">
                     </div>
 
                     <div class="form-group">
-                        <label>🔒 Contraseña</label>
+                        <label>Contraseña</label>
                         <input type="password" id="reg-password-input" required minlength="4" maxlength="40" autocomplete="new-password">
                     </div>
 
                     <div class="form-group">
-                        <label>Elige tu icono / avatar</label>
+                        <label>Elige tu icono</label>
                         <div class="avatar-picker" id="auth-avatar-picker">
                             <button type="button" class="avatar-opt active" data-avatar="😎">😎</button>
                             <button type="button" class="avatar-opt" data-avatar="🔥">🔥</button>
@@ -74,117 +72,110 @@
                         </div>
                     </div>
 
-                    <button type="submit" id="btn-submit-register" class="btn-primary-large" style="margin-top: 8px;">
-                        🚀 Crear mi @usuario
+                    <button type="submit" id="btn-submit-register" class="btn-primary-large">
+                        Crear cuenta
                     </button>
                 </form>
 
                 <!-- TARJETA DE VINCULACIÓN CON GOOGLE / MICROSOFT AUTHENTICATOR -->
                 <div id="card-auth-totp-setup" class="onboarding-card sheet-form hidden">
-                    <div class="card-section-title">🛡️ Activa Google / Microsoft Authenticator</div>
-                    <p style="font-size: 12px; color: var(--text-muted); line-height: 1.45;">
-                        Si algún día olvidas tu contraseña, podrás recuperarla al instante con el código de 6 dígitos de tu app <strong>Authenticator</strong>:
+                    <div class="card-section-title">🛡️ Recuperación con Authenticator (Opcional)</div>
+                    <p class="helper-hint">
+                        Si quieres poder recuperar tu contraseña sin depender de nadie, escanea este QR en Google o Microsoft Authenticator:
                     </p>
 
-                    <div style="display:flex; flex-direction:column; align-items:center; gap:10px; background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle); border-radius:14px; padding:14px;">
-                        <img id="totp-qr-img" src="" alt="QR Authenticator" style="width:165px; height:165px; border-radius:12px; background:#fff; padding:8px;">
-                        <a id="totp-open-app-link" href="#" class="btn-small-accent" style="text-decoration:none; display:inline-block; text-align:center;">
-                            📲 Abrir directamente en mi app Authenticator
+                    <div class="totp-box">
+                        <img id="totp-qr-img" src="" alt="QR Authenticator" class="totp-qr">
+                        <a id="totp-open-app-link" href="#" class="btn-small-accent">
+                            Abrir en app Authenticator
                         </a>
-                        <div style="width:100%; text-align:center;">
-                            <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px;">O copia esta clave secreta en Authenticator:</div>
-                            <div style="display:flex; gap:6px; justify-content:center; align-items:center;">
-                                <code id="totp-secret-text" style="background:#0f121b; padding:6px 10px; border-radius:8px; font-size:12px; font-weight:800; color:#ff9a3c; letter-spacing:1.5px;"></code>
-                                <button type="button" class="btn-icon-action" id="btn-copy-totp-secret">📋</button>
-                            </div>
+                        <div class="totp-secret-row">
+                            <code id="totp-secret-text"></code>
+                            <button type="button" class="btn-icon-action" id="btn-copy-totp-secret" title="Copiar clave">📋</button>
                         </div>
                     </div>
 
-                    <div class="form-group" style="margin-top:4px;">
-                        <label>🔢 Opcional: Introduce el código de 6 dígitos del Authenticator para comprobarlo</label>
-                        <input type="text" id="totp-verify-setup-input" inputmode="numeric" maxlength="6" style="text-align:center; letter-spacing:8px; font-size:18px; font-weight:800;">
+                    <div class="form-group">
+                        <label>Código de 6 dígitos (opcional para verificar ahora)</label>
+                        <input type="text" id="totp-verify-setup-input" inputmode="numeric" maxlength="6" class="totp-code-input">
                     </div>
 
                     <button type="button" id="btn-confirm-totp-setup" class="btn-primary-large">
-                        ✅ Guardar y Entrar a la App
+                        Continuar a la app
                     </button>
                 </div>
 
                 <!-- FORMULARIO 2: INICIAR SESIÓN (@USUARIO + CONTRASEÑA) -->
                 <form id="form-auth-login" class="onboarding-card sheet-form hidden">
-                    <div class="card-section-title">Iniciar Sesión</div>
-
                     <div class="form-group">
-                        <label>🏷️ Tu @usuario</label>
-                        <div style="display:flex; align-items:center; background:#0f121b; border:1px solid var(--border-subtle); border-radius:11px; padding-left:12px;">
-                            <span style="color:var(--accent-primary); font-weight:900; font-size:15px;">@</span>
-                            <input type="text" id="login-username-input" required maxlength="20" autocomplete="username" style="border:none; background:transparent; padding-left:4px; text-transform:lowercase;">
+                        <label>Tu @usuario</label>
+                        <div class="handle-input-wrap">
+                            <span class="handle-at">@</span>
+                            <input type="text" id="login-username-input" required maxlength="20" autocomplete="username">
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label>🔒 Contraseña</label>
+                        <label>Contraseña</label>
                         <input type="password" id="login-password-input" required maxlength="40" autocomplete="current-password">
                     </div>
 
-                    <button type="submit" class="btn-primary-large" style="margin-top: 8px;">
-                        🔓 Entrar con mi @usuario
+                    <button type="submit" class="btn-primary-large">
+                        Entrar
                     </button>
 
-                    <button type="button" id="btn-open-recover-totp" class="btn-secondary-block" style="margin-top: 6px; text-align:center; color:#ff9a3c;">
-                        🛡️ ¿Olvidaste tu contraseña? Usar Authenticator
+                    <button type="button" id="btn-open-recover-totp" class="btn-text-subtle">
+                        ¿Olvidaste tu contraseña? Recuperar con Authenticator
                     </button>
                 </form>
 
                 <!-- FORMULARIO 3: RECUPERAR CONTRASEÑA CON AUTHENTICATOR (6 DÍGITOS TOTP) -->
                 <form id="form-auth-recover" class="onboarding-card sheet-form hidden">
-                    <div class="card-section-title">🛡️ Recuperar con Authenticator</div>
-                    <p style="font-size: 12px; color: var(--text-muted); line-height: 1.45;">
-                        Abre la app <strong>Authenticator</strong> de tu móvil, mira el código de 6 dígitos de tu cuenta y elige una contraseña nueva:
+                    <div class="card-section-title">Recuperar contraseña</div>
+                    <p class="helper-hint">
+                        Introduce tu @usuario y el código de 6 dígitos que muestra tu app Authenticator:
                     </p>
 
                     <div class="form-group">
-                        <label>🏷️ Tu @usuario</label>
-                        <div style="display:flex; align-items:center; background:#0f121b; border:1px solid var(--border-subtle); border-radius:11px; padding-left:12px;">
-                            <span style="color:var(--accent-primary); font-weight:900; font-size:15px;">@</span>
-                            <input type="text" id="recover-username-input" required maxlength="20" style="border:none; background:transparent; padding-left:4px; text-transform:lowercase;">
+                        <label>Tu @usuario</label>
+                        <div class="handle-input-wrap">
+                            <span class="handle-at">@</span>
+                            <input type="text" id="recover-username-input" required maxlength="20">
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label>🔢 Código de 6 dígitos de tu Authenticator</label>
-                        <input type="text" id="recover-totp-input" inputmode="numeric" pattern="[0-9]{6}" required maxlength="6" style="text-align:center; letter-spacing:8px; font-size:19px; font-weight:800;">
+                        <label>Código de 6 dígitos (Authenticator)</label>
+                        <input type="text" id="recover-totp-input" inputmode="numeric" pattern="[0-9]{6}" required maxlength="6" class="totp-code-input">
                     </div>
 
                     <div class="form-group">
-                        <label>🔑 Nueva Contraseña</label>
+                        <label>Nueva contraseña</label>
                         <input type="password" id="recover-new-password-input" required minlength="4" maxlength="40">
                     </div>
 
-                    <button type="submit" class="btn-primary-large" style="margin-top: 8px;">
-                        ✅ Cambiar Contraseña y Entrar
+                    <button type="submit" class="btn-primary-large">
+                        Guardar nueva contraseña
                     </button>
-                    <button type="button" id="btn-back-to-login" class="btn-secondary-block" style="margin-top: 6px; text-align:center;">
-                        ⬅️ Volver a Iniciar Sesión
+                    <button type="button" id="btn-back-to-login" class="btn-text-subtle">
+                        Volver a iniciar sesión
                     </button>
                 </form>
             </div>
         </section>
 
         <!-- ==================================================================
-             PANTALLA 0: BIENVENIDA / CREAR GRUPO DESDE CERO (ESTILO WHATSAPP)
+             PANTALLA 0: BIENVENIDA / CREAR GRUPO DESDE CERO
              ================================================================== -->
         <section id="onboarding-screen" class="onboarding-screen hidden">
             <div class="onboarding-scroll">
                 <div class="onboarding-brand">
-                    <span class="onboarding-badge">APP DE QUEDADAS</span>
-                    <h1>¿Quién queda?</h1>
-                    <p>Crea tu grupo de amigos, añade todos los nombres que quieras y cuando les pases el link cada uno vinculará su nombre a su teléfono.</p>
+                    <span class="onboarding-badge">Nuevo grupo</span>
+                    <h1>Crea tu grupo</h1>
+                    <p>Elige un nombre, añade a tus amigos y comparte el enlace por WhatsApp.</p>
                 </div>
 
                 <form id="form-onboarding-group" class="onboarding-card">
-                    <div class="card-section-title">1. Datos del Grupo</div>
-
                     <div class="wa-group-photo-row">
                         <label for="onboarding-photo-input" class="wa-photo-Circle" id="onboarding-photo-preview" title="Subir foto del grupo">
                             <span id="onboarding-photo-placeholder">📷</span>
@@ -195,68 +186,63 @@
 
                         <div class="wa-group-inputs">
                             <input type="text" id="onboarding-group-name" placeholder="Nombre del grupo" required maxlength="40">
-                            <input type="text" id="onboarding-group-desc" placeholder="Descripción del grupo (opcional)" maxlength="80">
+                            <input type="text" id="onboarding-group-desc" placeholder="Descripción (opcional)" maxlength="80">
                         </div>
                     </div>
 
-                    <div class="card-section-title" style="margin-top: 18px;">2. Integrantes del Grupo</div>
-                    <p class="helper-hint">El primer integrante que añadas será el <strong>Admin inicial</strong> (luego podréis nombrar más admins como en WhatsApp):</p>
+                    <div class="card-section-title" style="margin-top: 18px;">Integrantes</div>
+                    <p class="helper-hint">Añade los nombres de tus amigos (luego cada uno vinculará el suyo al entrar):</p>
 
                     <div class="add-member-inline">
                         <input type="text" id="onboarding-member-name" placeholder="Nombre de integrante" maxlength="25">
-                        <button type="button" class="btn-add-inline" id="btn-add-onboarding-member">＋ Añadir</button>
+                        <button type="button" class="btn-add-inline" id="btn-add-onboarding-member">Añadir</button>
                     </div>
 
                     <div id="onboarding-members-chips" class="members-chips-container"></div>
 
                     <button type="submit" class="btn-primary-large" style="margin-top: 18px;">
-                        ✅ Crear Grupo y Entrar
+                        Crear grupo
                     </button>
                 </form>
 
                 <div class="onboarding-join-card">
-                    <div class="card-section-title">¿Tu grupo ya existe?</div>
+                    <div class="card-section-title">¿Tienes un código de invitación?</div>
                     <div class="add-member-inline">
-                        <input type="text" id="onboarding-join-code" placeholder="Introduce el código del grupo" maxlength="12" style="text-transform:uppercase;">
-                        <button type="button" class="btn-add-inline secondary" id="btn-onboarding-join">Entrar</button>
+                        <input type="text" id="onboarding-join-code" placeholder="Código del grupo" maxlength="12" style="text-transform:uppercase;">
+                        <button type="button" class="btn-add-inline secondary" id="btn-onboarding-join">Unirme</button>
                     </div>
                 </div>
             </div>
         </section>
 
         <!-- ==================================================================
-             CABECERA PRINCIPAL DEL GRUPO ACTIVO
+             CABECERA PRINCIPAL LIMPIA Y MINIMALISTA
              ================================================================== -->
         <header class="app-header" id="main-app-header">
-            <div class="header-left" id="open-group-switcher" title="Cambiar o crear otro grupo">
+            <div class="header-left" id="open-group-switcher" title="Cambiar de grupo">
                 <div class="group-avatar" id="header-group-avatar">
                     <span id="header-group-emoji">👥</span>
                     <img id="header-group-img" src="" alt="Grupo" class="hidden">
                 </div>
                 <div class="group-meta">
-                    <div class="brand-mini-row">
-                        <span class="brand-tag">QUIÉN QUEDA?</span>
-                        <span class="sync-dot" id="sync-status-badge">● Local</span>
-                    </div>
                     <div class="group-label-row">
                         <span class="group-name" id="header-group-name">Mi Grupo</span>
                         <span class="chevron-down">▾</span>
                     </div>
+                    <span class="sync-dot" id="sync-status-badge">● Sincronizado</span>
                 </div>
             </div>
 
             <div class="header-right">
-                <button class="notif-bell-btn" id="open-share-header-btn" title="Compartir grupo por WhatsApp" style="background:rgba(37, 211, 102, 0.16); border-color:rgba(37, 211, 102, 0.45);">
-                    📲
+                <button class="header-icon-btn" id="open-share-header-btn" title="Invitar amigos">
+                    🔗 <span>Invitar</span>
                 </button>
-                <button class="notif-bell-btn" id="open-notifications-btn" title="Quedadas pendientes de confirmar asistencia">
-                    🔔
-                    <span class="notif-badge hidden" id="notif-pending-count">0</span>
+                <button class="header-icon-btn notif-bell-btn hidden" id="open-notifications-btn" title="Quedadas por cerrar">
+                    🔔 <span class="notif-badge hidden" id="notif-pending-count">0</span>
                 </button>
-                <button class="active-user-pill" id="open-user-switcher" title="Cambiar integrante activo">
+                <button class="active-user-pill" id="open-user-switcher" title="Mi perfil">
                     <span class="user-avatar-mini" id="active-user-avatar">👤</span>
                     <span class="user-name-mini" id="active-user-name">Yo</span>
-                    <span class="pill-switch-icon">▾</span>
                 </button>
             </div>
         </header>
@@ -264,13 +250,13 @@
         <!-- BANNER DE NOTIFICACIÓN AUTOMÁTICA CUANDO FINALIZA UNA QUEDADA -->
         <div id="finished-hangout-banner" class="finished-banner hidden">
             <div class="finished-banner-left">
-                <span class="finished-bell">🔔</span>
+                <span class="finished-bell">✨</span>
                 <div>
-                    <div class="finished-banner-title" id="finished-banner-title">¡Quedada finalizada!</div>
-                    <div class="finished-banner-sub" id="finished-banner-sub">Toca para confirmar asistencia, foto y puntualidad</div>
+                    <div class="finished-banner-title" id="finished-banner-title">Quedada finalizada</div>
+                    <div class="finished-banner-sub" id="finished-banner-sub">Confirma quién asistió y añade una foto</div>
                 </div>
             </div>
-            <button class="btn-finished-confirm" id="btn-finished-banner-open">Pasar lista</button>
+            <button class="btn-finished-confirm" id="btn-finished-banner-open">Cerrar plan</button>
         </div>
 
         <!-- ==================================================================
@@ -280,169 +266,154 @@
 
             <!-- ================= VISTA 1: QUEDADAS DEL GRUPO ================= -->
             <section id="view-plans" class="tab-view active">
-                <div class="quick-actions-grid">
-                    <div class="quick-create-card" id="quick-create-trigger">
-                        <div class="quick-create-left">
-                            <span class="quick-create-icon">📅</span>
-                            <div>
-                                <div class="quick-create-title">Crear Quedada</div>
-                                <div class="quick-create-sub">Día, hora, lugar y etiquetas</div>
-                            </div>
-                        </div>
-                        <span class="quick-create-plus">＋</span>
+                <!-- Barra superior limpia: filtros a la izquierda, ruleta a la derecha -->
+                <div class="plans-toolbar">
+                    <div class="sub-tabs-bar">
+                        <button class="sub-tab active" data-plan-filter="upcoming">
+                            Próximas <span class="badge-count" id="count-upcoming">0</span>
+                        </button>
+                        <button class="sub-tab" data-plan-filter="pending_check">
+                            Por cerrar <span class="badge-count" id="count-pending">0</span>
+                        </button>
+                        <button class="sub-tab" data-plan-filter="completed">
+                            Pasadas <span class="badge-count" id="count-past">0</span>
+                        </button>
                     </div>
 
-                    <button type="button" class="quick-roulette-btn" id="open-standalone-roulette-btn" title="Abrir Ruleta de Indecisos">
-                        <span style="font-size:22px;">🎰</span>
-                        <span>Ruleta</span>
+                    <button type="button" class="btn-roulette-pill" id="open-standalone-roulette-btn" title="Decidir plan a la suerte">
+                        🎰 Ruleta
                     </button>
                 </div>
 
-                <!-- Filtros de quedadas -->
-                <div class="sub-tabs-bar">
-                    <button class="sub-tab active" data-plan-filter="upcoming">
-                        ⏳ Activas <span class="badge-count" id="count-upcoming">0</span>
-                    </button>
-                    <button class="sub-tab" data-plan-filter="pending_check">
-                        🔔 Por confirmar <span class="badge-count" id="count-pending">0</span>
-                    </button>
-                    <button class="sub-tab" data-plan-filter="completed">
-                        📸 Finalizadas <span class="badge-count" id="count-past">0</span>
-                    </button>
-                </div>
+                <!-- Trigger oculto por compatibilidad de script -->
+                <div id="quick-create-trigger" class="hidden"></div>
 
                 <!-- Lista de tarjetas de quedadas -->
                 <div id="plans-list" class="plans-list"></div>
             </section>
 
-            <!-- ================= VISTA 2: ESTADÍSTICAS, PIQUE Y CÁPSULA DEL TIEMPO ================= -->
+            <!-- ================= VISTA 2: ESTADÍSTICAS ORGANIZADAS EN 3 SECCIONES ================= -->
             <section id="view-stats" class="tab-view hidden">
                 <div class="section-header-row">
                     <div>
-                        <h2 class="section-title">📊 Estadísticas y Pique</h2>
-                        <p class="section-subtitle">Gráficos, rachas, fantasmetro, excusómetro y recuerdos</p>
+                        <h2 class="section-title">Estadísticas</h2>
                     </div>
                     <button class="btn-wrapped-trigger" id="open-wrapped-btn">
-                        ✨ Story Wrapped
+                        ✨ Resumen Story
                     </button>
                 </div>
 
-                <!-- Selector de dimensión temporal: Mes / Estación (Cuatrimestre) / Año -->
-                <div class="period-mode-tabs">
-                    <button class="period-mode-btn active" data-period-mode="month">📅 Mes</button>
-                    <button class="period-mode-btn" data-period-mode="season">🍂 Estación</button>
-                    <button class="period-mode-btn" data-period-mode="year">🏆 Año</button>
+                <!-- Barra de periodo compacta -->
+                <div class="stats-period-bar">
+                    <div class="period-mode-tabs">
+                        <button class="period-mode-btn active" data-period-mode="month">Mes</button>
+                        <button class="period-mode-btn" data-period-mode="season">Estación</button>
+                        <button class="period-mode-btn" data-period-mode="year">Año</button>
+                    </div>
+                    <div class="period-selector-strip" id="period-selector-strip"></div>
                 </div>
 
-                <!-- Selector dinámico del periodo específico -->
-                <div class="period-selector-strip" id="period-selector-strip"></div>
-
-                <!-- Tarjetas KPI Resumen del periodo -->
+                <!-- Tarjetas KPI Resumen del periodo (siempre visibles arriba) -->
                 <div class="stats-kpi-grid" id="stats-kpi-grid"></div>
 
-                <!-- TÍTULOS DINÁMICOS PERSONALIZABLES DEL GRUPO -->
-                <div class="card-panel">
-                    <div class="panel-header">
-                        <h3>🏷️ Títulos Dinámicos del Periodo</h3>
-                        <button class="btn-link-mini" id="btn-edit-custom-titles">✏️ Personalizar títulos</button>
-                    </div>
-                    <div id="dynamic-titles-grid" class="stats-awards-grid"></div>
+                <!-- Sub-navegación limpia para no mostrar 10 cajas de golpe -->
+                <div class="stats-subnav" id="stats-section-tabs">
+                    <button type="button" class="stats-subnav-btn active" data-stats-panel="panel-ranking">🏆 Ranking</button>
+                    <button type="button" class="stats-subnav-btn" data-stats-panel="panel-pique">🎭 El Pique</button>
+                    <button type="button" class="stats-subnav-btn" data-stats-panel="panel-memories">📸 Recuerdos</button>
                 </div>
 
-                <!-- GRÁFICO 1: Gráfico de barras de asistencia por integrante (%) -->
-                <div class="card-panel">
-                    <div class="panel-header">
-                        <h3>📈 Gráfico de Asistencia por Integrante</h3>
-                        <span class="panel-caption" id="chart-members-period-label">Este periodo</span>
+                <!-- SUB-SECCIÓN 1: RANKING Y TÍTULOS -->
+                <div id="panel-ranking" class="stats-subpanel">
+                    <div class="card-panel">
+                        <div class="panel-header">
+                            <h3>Asistencia y rachas</h3>
+                            <span class="panel-caption" id="chart-members-period-label">Este periodo</span>
+                        </div>
+                        <div id="attendance-ranking-list" class="ranking-list"></div>
                     </div>
-                    <div id="members-bar-chart" class="vertical-bar-chart"></div>
+
+                    <div class="card-panel">
+                        <div class="panel-header">
+                            <h3>Títulos del grupo</h3>
+                            <button class="btn-link-mini" id="btn-edit-custom-titles">Editar títulos</button>
+                        </div>
+                        <div id="dynamic-titles-grid" class="stats-awards-grid"></div>
+                    </div>
+
+                    <div class="card-panel">
+                        <div class="panel-header">
+                            <h3>Evolución de quedadas</h3>
+                            <span class="panel-caption" id="chart-timeline-label">Historial</span>
+                        </div>
+                        <div id="hangouts-timeline-chart" class="vertical-bar-chart"></div>
+                        <div id="members-bar-chart" class="hidden"></div>
+                    </div>
                 </div>
 
-                <!-- DETALLE DE ASISTENCIA + RACHAS DE FUEGO POR INTEGRANTE -->
-                <div class="card-panel">
-                    <div class="panel-header">
-                        <h3>🔥 Ranking, Porcentaje y Rachas</h3>
-                        <span class="panel-caption">🔥 3+ · 🔥🔥 5+ · 👑🔥 10+</span>
+                <!-- SUB-SECCIÓN 2: EL PIQUE (FANTASMETRO, EXCUSAS Y DÚOS) -->
+                <div id="panel-pique" class="stats-subpanel hidden">
+                    <div class="card-panel">
+                        <div class="panel-header">
+                            <h3>👻 Fantasmetro y puntualidad</h3>
+                            <span class="panel-caption">Bajas de última hora y retrasos</span>
+                        </div>
+                        <div id="fantasmetro-list" class="ranking-list"></div>
                     </div>
-                    <div id="attendance-ranking-list" class="ranking-list"></div>
+
+                    <div class="card-panel">
+                        <div class="panel-header">
+                            <h3>🤥 Excusas más usadas</h3>
+                            <span class="panel-caption">Al marcar "No voy"</span>
+                        </div>
+                        <div id="excusometro-list" class="top-places-list"></div>
+                    </div>
+
+                    <div class="card-panel">
+                        <div class="panel-header">
+                            <h3>🤝 Afinidad entre amigos</h3>
+                            <span class="panel-caption">Quiénes coinciden más y menos</span>
+                        </div>
+                        <div id="duos-afinidad-box" class="duos-grid"></div>
+                    </div>
                 </div>
 
-                <!-- GRÁFICO 2: Evolución de Quedadas realizadas (Por Mes / Cuatrimestre) -->
-                <div class="card-panel">
-                    <div class="panel-header">
-                        <h3>📊 Gráfico de Quedadas Realizadas</h3>
-                        <span class="panel-caption" id="chart-timeline-label">Evolución</span>
+                <!-- SUB-SECCIÓN 3: RECUERDOS Y HÁBITOS -->
+                <div id="panel-memories" class="stats-subpanel hidden">
+                    <div class="card-panel">
+                        <div class="panel-header">
+                            <h3>📸 Álbum de recuerdos</h3>
+                            <span class="panel-caption">Fotos y frases de las quedadas</span>
+                        </div>
+                        <div id="time-capsule-gallery" class="capsule-grid"></div>
                     </div>
-                    <div id="hangouts-timeline-chart" class="vertical-bar-chart"></div>
-                </div>
 
-                <!-- EL FANTASMETRO (ÍNDICE DE FLAKE) Y PUNTUALIDAD -->
-                <div class="card-panel">
-                    <div class="panel-header">
-                        <h3>👻 El Fantasmetro e Impuntualidad</h3>
-                        <span class="panel-caption">Caídas a última hora (&lt;2h) o sin aparecer</span>
+                    <div class="card-panel">
+                        <div class="panel-header">
+                            <h3>🗓️ Días y planes favoritos</h3>
+                            <span class="panel-caption">¿Cuándo quedáis más?</span>
+                        </div>
+                        <div id="weekday-heatmap" class="weekday-heatmap"></div>
+                        <div id="tags-stats-list" class="top-places-list" style="margin-top: 14px;"></div>
                     </div>
-                    <div id="fantasmetro-list" class="ranking-list"></div>
-                </div>
-
-                <!-- EL EXCUSÓMETRO -->
-                <div class="card-panel">
-                    <div class="panel-header">
-                        <h3>🤥 El Excusómetro del Grupo</h3>
-                        <span class="panel-caption">Excusas más repetidas al decir "No voy"</span>
-                    </div>
-                    <div id="excusometro-list" class="top-places-list"></div>
-                </div>
-
-                <!-- DÚOS DINÁMICOS (AFINIDAD) -->
-                <div class="card-panel">
-                    <div class="panel-header">
-                        <h3>🤝 Dúos Dinámicos (Afinidad)</h3>
-                        <span class="panel-caption">Quiénes coinciden siempre y quiénes nunca</span>
-                    </div>
-                    <div id="duos-afinidad-box" class="duos-grid"></div>
-                </div>
-
-                <!-- MAPA DE CALOR POR DÍAS DE LA SEMANA + ÉXITO POR ETIQUETAS -->
-                <div class="card-panel">
-                    <div class="panel-header">
-                        <h3>🗓️ Mapa de Calor por Día de la Semana</h3>
-                        <span class="panel-caption">¿Qué día triunfa más?</span>
-                    </div>
-                    <div id="weekday-heatmap" class="weekday-heatmap"></div>
-
-                    <div class="panel-header" style="margin-top: 16px; margin-bottom: 10px;">
-                        <h3>🏷️ Éxito por Etiqueta (Tags)</h3>
-                        <span class="panel-caption">Planes que más triunfan</span>
-                    </div>
-                    <div id="tags-stats-list" class="top-places-list"></div>
-                </div>
-
-                <!-- CÁPSULA DEL TIEMPO (GALERÍA DE FOTOS DE PRUEBA Y FRASES MÍTICAS) -->
-                <div class="card-panel">
-                    <div class="panel-header">
-                        <h3>📸 Cápsula del Tiempo (Recuerdos)</h3>
-                        <span class="panel-caption">Fotos de prueba y frases míticas</span>
-                    </div>
-                    <div id="time-capsule-gallery" class="capsule-grid"></div>
                 </div>
             </section>
 
-            <!-- ================= VISTA 3: EL GRUPO (ADMINS ESTILO WHATSAPP Y AJUSTES) ================= -->
+            <!-- ================= VISTA 3: EL GRUPO ================= -->
             <section id="view-group" class="tab-view hidden">
                 <div class="group-hero-card">
                     <div class="group-hero-top">
-                        <label for="edit-group-photo-input" class="group-hero-avatar-wrap" title="Cambiar foto del grupo">
+                        <label for="edit-group-photo-input" class="group-hero-avatar-wrap" title="Cambiar foto">
                             <span id="group-view-emoji">👥</span>
                             <img id="group-view-img" src="" alt="Foto grupo" class="hidden">
-                            <span class="wa-photo-edit-badge">📷</span>
+                            <span class="wa-photo-edit-badge">✎</span>
                         </label>
                         <input type="file" id="edit-group-photo-input" accept="image/*" class="hidden">
 
                         <div class="group-hero-info" style="flex:1;">
                             <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
                                 <h2 id="group-view-name">Nombre del Grupo</h2>
-                                <button class="btn-link-mini" id="btn-edit-group-info">✏️ Editar</button>
+                                <button class="btn-link-mini" id="btn-edit-group-info">Editar</button>
                             </div>
                             <p id="group-view-desc">Sin descripción</p>
                         </div>
@@ -450,67 +421,55 @@
 
                     <div class="invite-box">
                         <div>
-                            <span class="invite-label">CÓDIGO Y ENLACE PARA WHATSAPP</span>
+                            <span class="invite-label">Código de invitación</span>
                             <div class="invite-code" id="group-invite-code">------</div>
                         </div>
                         <div class="invite-actions">
-                            <button class="btn-icon-action" id="copy-code-btn">🔗 Copiar</button>
+                            <button class="btn-icon-action" id="copy-code-btn">Copiar enlace</button>
                             <button class="btn-icon-action primary" id="share-whatsapp-btn">📲 Compartir</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Integrantes y Admins del Grupo (Estilo WhatsApp) -->
+                <!-- Integrantes del Grupo -->
                 <div class="card-panel">
                     <div class="panel-header">
-                        <h3>👥 Integrantes y Admins (<span id="members-count-badge">0</span>)</h3>
-                        <button class="btn-small-accent" id="open-add-member-btn">+ Añadir Integrante</button>
+                        <h3>Integrantes (<span id="members-count-badge">0</span>)</h3>
+                        <button class="btn-small-accent" id="open-add-member-btn">＋ Añadir</button>
                     </div>
-                    <p class="helper-hint">
-                        👑 Como en WhatsApp, podéis designar todos los <strong>Admins</strong> que queráis, pero siempre debe haber <strong>mínimo 1 Admin</strong> en el grupo.
-                    </p>
                     <div id="group-members-list" class="members-list"></div>
                 </div>
 
-                <!-- Personalización de Títulos Dinámicos y Etiquetas del Grupo -->
+                <!-- Ajustes del grupo en una sola tarjeta limpia -->
                 <div class="card-panel">
                     <div class="panel-header">
-                        <h3>🏷️ Títulos y Etiquetas del Grupo</h3>
+                        <h3>Opciones</h3>
                     </div>
                     <div class="settings-actions">
-                        <button class="btn-secondary-block" id="btn-open-titles-from-group">🏆 Configurar Títulos Dinámicos del mes/año</button>
-                    </div>
-                </div>
-
-                <!-- Gestión de Grupos -->
-                <div class="card-panel">
-                    <div class="panel-header">
-                        <h3>⚙️ Gestión de Grupos</h3>
-                    </div>
-                    <div class="settings-actions">
-                        <button class="btn-secondary-block" id="btn-create-new-group">➕ Crear o cambiar a otro grupo</button>
-                        <button class="btn-secondary-block danger-text" id="btn-delete-current-group">🗑️ Eliminar este grupo por completo</button>
+                        <button class="btn-secondary-block" id="btn-open-titles-from-group">🏷️ Personalizar títulos del grupo</button>
+                        <button class="btn-secondary-block" id="btn-create-new-group">👥 Cambiar o crear otro grupo</button>
+                        <button class="btn-secondary-block danger-text" id="btn-delete-current-group">Eliminar este grupo</button>
                     </div>
                 </div>
             </section>
 
         </main>
 
-        <!-- BARRA DE NAVEGACIÓN INFERIOR -->
+        <!-- BARRA DE NAVEGACIÓN INFERIOR LIMPIA -->
         <nav class="bottom-nav" id="main-bottom-nav">
             <button class="nav-item active" data-target="view-plans">
                 <span class="nav-icon">📅</span>
-                <span class="nav-label">Quedadas</span>
+                <span class="nav-label">Planes</span>
             </button>
 
             <button class="nav-fab" id="open-create-plan-btn" aria-label="Crear Quedada">
                 <span class="fab-plus">＋</span>
-                <span class="fab-text">Crear Quedada</span>
+                <span class="fab-text">Nueva</span>
             </button>
 
             <button class="nav-item" data-target="view-stats">
                 <span class="nav-icon">📊</span>
-                <span class="nav-label">Estadísticas</span>
+                <span class="nav-label">Resumen</span>
             </button>
 
             <button class="nav-item" data-target="view-group">

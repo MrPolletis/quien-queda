@@ -924,12 +924,11 @@ function renderHeader() {
 
     document.getElementById('header-group-name').textContent = group.name;
     document.getElementById('active-user-avatar').textContent = user.avatar;
-    document.getElementById('active-user-name').textContent =
-        user.name + (user.isAdmin ? ' 👑' : '') + (user.username ? ` (${formatHandle(user.username)})` : '');
+    document.getElementById('active-user-name').textContent = user.name;
 }
 
 // ==========================================================================
-// VISTA 1: QUEDADAS
+// VISTA 1: QUEDADAS (TARJETAS LIMPIAS Y FÁCILES DE LEER)
 // ==========================================================================
 function renderPlansView() {
     const group = getActiveGroup();
@@ -953,14 +952,14 @@ function renderPlansView() {
     const listEl = document.getElementById('plans-list');
     if (listToRender.length === 0) {
         const emptyMessages = {
-            upcoming: 'No hay quedadas activas.<br>Pulsa en <strong>Crear Quedada</strong> para elegir día, hora, lugar y etiqueta.',
+            upcoming: 'No hay planes próximos.<br>Pulsa el botón <strong>＋ Nueva</strong> abajo para proponer una quedada.',
             pending_check: 'No hay quedadas pendientes de pasar lista.',
-            completed: 'Aún no hay quedadas cerradas. Al finalizar una quedada podrás subir la foto de prueba y verla aquí.'
+            completed: 'Aún no hay quedadas pasadas registradas.'
         };
         listEl.innerHTML = `
             <div class="empty-state">
-                <div style="font-size: 32px; margin-bottom: 8px;">📅</div>
-                ${emptyMessages[currentPlanFilter]}
+                <div class="empty-state-icon">📅</div>
+                <div>${emptyMessages[currentPlanFilter]}</div>
             </div>
         `;
         return;
@@ -971,7 +970,6 @@ function renderPlansView() {
 
 function renderPlanCardHTML(plan, group, activeUser, streaks) {
     const creator = getMemberById(plan.createdBy);
-    const season = getSeasonFromDateStr(plan.date);
     const state = getPlanLifecycleState(plan);
     const myStatus = (plan.attendance && plan.attendance[activeUser.id]) || null;
 
@@ -986,14 +984,7 @@ function renderPlanCardHTML(plan, group, activeUser, streaks) {
         else if (st === 'no') noMembers.push(m);
     });
 
-    let statusPillHTML = `<span class="plan-status-pill active">⏳ Activa</span>`;
-    if (state === 'pending_check') {
-        statusPillHTML = `<span class="plan-status-pill pending">🔔 Pendiente pasar lista</span>`;
-    } else if (state === 'completed') {
-        statusPillHTML = `<span class="plan-status-pill done">✅ Cerrada</span>`;
-    }
-
-    // Mostrar propuestas de hora/lugar si están abiertas
+    // Propuestas de hora/lugar compactas y sin botones duplicados
     let votingHTML = '';
     if (plan.votingOpen && state === 'upcoming') {
         const proposals = plan.proposals || [];
@@ -1003,11 +994,11 @@ function renderPlanCardHTML(plan, group, activeUser, streaks) {
             return `
                 <div class="proposal-item ${hasVoted ? 'voted' : ''}" data-action="toggle-vote" data-plan-id="${plan.id}" data-prop-id="${prop.id}">
                     <div>
-                        <span class="proposal-main">⏰ ${escapeHtml(prop.time)} · 📍 ${escapeHtml(prop.location)}</span>
-                        <span class="proposal-sub">Por ${escapeHtml(author.name)}${prop.reason ? ` — "${escapeHtml(prop.reason)}"` : ''}</span>
+                        <span class="proposal-main">${escapeHtml(prop.time)} · ${escapeHtml(prop.location)}</span>
+                        <span class="proposal-sub">Por ${escapeHtml(author.name)}${prop.reason ? ` · "${escapeHtml(prop.reason)}"` : ''}</span>
                     </div>
                     <div class="proposal-votes-pill">
-                        ${hasVoted ? '✅' : '👍'} ${(prop.votes || []).length}
+                        ${hasVoted ? '✓' : '👍'} ${(prop.votes || []).length}
                     </div>
                 </div>
             `;
@@ -1016,34 +1007,33 @@ function renderPlanCardHTML(plan, group, activeUser, streaks) {
         votingHTML = `
             <div class="voting-section">
                 <div class="voting-header">
-                    <span class="voting-title">🗳️ Propuestas de Hora y Lugar</span>
-                    <button class="btn-link-mini" data-action="open-add-proposal" data-plan-id="${plan.id}">+ Añadir otra</button>
+                    <span class="voting-title">Alternativas propuestas</span>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <button class="btn-link-mini" data-action="open-add-proposal" data-plan-id="${plan.id}">＋ Proponer cambio</button>
+                        ${proposals.length > 1 ? `<button class="btn-link-mini" style="color:var(--accent-green);" data-action="close-voting" data-plan-id="${plan.id}">Fijar ganadora</button>` : ''}
+                    </div>
                 </div>
                 ${proposalsItemsHTML}
-                <div class="voting-footer-actions">
-                    <button class="btn-voting-action" data-action="open-add-proposal" data-plan-id="${plan.id}">➕ Proponer hora/sitio</button>
-                    <button class="btn-voting-action confirm" data-action="close-voting" data-plan-id="${plan.id}">🔒 Fijar más votada</button>
-                </div>
             </div>
         `;
     }
 
-    // Mostrar excusas registradas en esta quedada
+    // Excusas registradas de forma limpia
     const excusesEntries = Object.entries(plan.excuses || {});
     let excusesHTML = '';
     if (excusesEntries.length > 0) {
         excusesHTML = `
-            <div style="margin-top:8px; font-size:11px; color:var(--text-muted); background:rgba(255,71,87,0.06); padding:7px 10px; border-radius:9px;">
+            <div class="excuses-compact-box">
                 ${excusesEntries.map(([uid, exc]) => {
                     const m = getMemberById(uid);
                     const isFlake = plan.flakes && plan.flakes[uid];
-                    return `<div>🤥 <strong>${escapeHtml(m.name)}</strong>: "${escapeHtml(exc)}" ${isFlake ? '<span style="color:#ff4757; font-weight:800;">(👻 Flake)</span>' : ''}</div>`;
+                    return `<div class="excuse-line"><span>${escapeHtml(m.name)}:</span> "${escapeHtml(exc)}" ${isFlake ? '<span class="flake-tag">👻 Baja última hora</span>' : ''}</div>`;
                 }).join('')}
             </div>
         `;
     }
 
-    // Mostrar Cápsula del Tiempo si tiene foto o frase mítica
+    // Recuerdo si ya está cerrada
     let memoryHTML = '';
     if (plan.memoryPhoto || plan.memoryQuote || plan.lateMemberId) {
         const lateMember = plan.lateMemberId ? getMemberById(plan.lateMemberId) : null;
@@ -1051,8 +1041,8 @@ function renderPlanCardHTML(plan, group, activeUser, streaks) {
             <div class="plan-memory-box">
                 ${plan.memoryPhoto ? `<img src="${plan.memoryPhoto}" class="plan-memory-thumb" alt="Foto recuerdo">` : ''}
                 <div style="flex:1;">
-                    ${plan.memoryQuote ? `<div style="font-size:12px; font-weight:700; color:#ff9a3c;">📸 "${escapeHtml(plan.memoryQuote)}"</div>` : ''}
-                    ${lateMember ? `<div style="font-size:11px; color:var(--text-muted); margin-top:2px;">🐢 Llegó el último: <strong>${escapeHtml(lateMember.name)}</strong></div>` : ''}
+                    ${plan.memoryQuote ? `<div class="memory-quote-text">"${escapeHtml(plan.memoryQuote)}"</div>` : ''}
+                    ${lateMember ? `<div class="memory-late-text">🐢 Llegó tarde: <strong>${escapeHtml(lateMember.name)}</strong></div>` : ''}
                 </div>
             </div>
         `;
@@ -1061,61 +1051,58 @@ function renderPlanCardHTML(plan, group, activeUser, streaks) {
     return `
         <article class="plan-card ${state === 'pending_check' ? 'pending-confirm' : ''} ${state === 'completed' ? 'completed-card' : ''}">
             <div class="plan-card-top">
-                <div style="display:flex; gap:6px; align-items:center;">
-                    ${statusPillHTML}
-                    ${plan.tag ? `<span class="plan-status-pill" style="background:rgba(255,255,255,0.07); color:#fff;">🏷️ ${escapeHtml(plan.tag)}</span>` : ''}
+                <div class="plan-title-wrap">
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <h3 class="plan-title">${escapeHtml(plan.title)}</h3>
+                        ${plan.tag ? `<span class="plan-tag-badge">${escapeHtml(plan.tag)}</span>` : ''}
+                    </div>
+                    <div class="plan-creator">Propuesto por ${creator.avatar} ${escapeHtml(creator.name)}</div>
                 </div>
-                <span class="plan-season-tag">${season.icon} ${season.name}</span>
+                <div class="plan-top-actions">
+                    <button class="plan-icon-btn" data-action="share-plan-wa" data-plan-id="${plan.id}" title="Compartir en WhatsApp">📲</button>
+                    <button class="plan-icon-btn danger" data-action="delete-plan" data-plan-id="${plan.id}" title="Eliminar">🗑️</button>
+                </div>
             </div>
 
-            <h3 class="plan-title">${escapeHtml(plan.title)}</h3>
-            <div class="plan-creator">Creada por <strong>${creator.avatar} ${escapeHtml(creator.name)}</strong></div>
-
-            <div class="plan-datetime-box">
-                <div class="plan-dt-row">📅 ${formatHumanDate(plan.date)} · ⏰ <strong>${escapeHtml(plan.time)}</strong></div>
-                <div class="plan-dt-row">📍 ${escapeHtml(plan.location)}</div>
+            <div class="plan-info-pills">
+                <div class="plan-info-chip">📅 ${formatHumanDate(plan.date)} · <strong>${escapeHtml(plan.time)}</strong></div>
+                <div class="plan-info-chip">📍 ${escapeHtml(plan.location)}</div>
             </div>
 
-            ${plan.notes ? `<div class="plan-notes">"${escapeHtml(plan.notes)}"</div>` : ''}
-
-            ${votingHTML}
+            ${plan.notes ? `<div class="plan-notes">${escapeHtml(plan.notes)}</div>` : ''}
 
             <div class="rsvp-buttons-row">
                 <button class="rsvp-btn yes ${myStatus === 'yes' ? 'selected' : ''}" data-action="rsvp" data-plan-id="${plan.id}" data-status="yes">
-                    ✅ Voy (${yesMembers.length})
+                    Voy <span>${yesMembers.length}</span>
                 </button>
                 <button class="rsvp-btn maybe ${myStatus === 'maybe' ? 'selected' : ''}" data-action="rsvp" data-plan-id="${plan.id}" data-status="maybe">
-                    🤔 Duda (${maybeMembers.length})
+                    Duda <span>${maybeMembers.length}</span>
                 </button>
                 <button class="rsvp-btn no ${myStatus === 'no' ? 'selected' : ''}" data-action="rsvp" data-plan-id="${plan.id}" data-status="no">
-                    ❌ No voy (${noMembers.length})
+                    No voy <span>${noMembers.length}</span>
                 </button>
             </div>
 
+            ${(yesMembers.length || maybeMembers.length || noMembers.length || excusesHTML || memoryHTML) ? `
             <div class="attendees-breakdown">
                 <div class="attendees-pills">
                     ${yesMembers.map(m => {
                         const sv = getStreakVisuals(streaks[m.id]?.current || 0);
-                        return `<span class="attendee-chip status-yes">✅ ${escapeHtml(m.name)} ${sv.badgeHtml}</span>`;
+                        return `<span class="attendee-chip status-yes">${m.avatar} ${escapeHtml(m.name)} ${sv.badgeHtml}</span>`;
                     }).join('')}
-                    ${maybeMembers.map(m => `<span class="attendee-chip status-maybe">🤔 ${escapeHtml(m.name)}</span>`).join('')}
-                    ${noMembers.map(m => `<span class="attendee-chip status-no">❌ ${escapeHtml(m.name)}</span>`).join('')}
+                    ${maybeMembers.map(m => `<span class="attendee-chip status-maybe">${m.avatar} ${escapeHtml(m.name)}</span>`).join('')}
+                    ${noMembers.map(m => `<span class="attendee-chip status-no">${m.avatar} ${escapeHtml(m.name)}</span>`).join('')}
                 </div>
                 ${excusesHTML}
                 ${memoryHTML}
             </div>
+            ` : ''}
+
+            ${votingHTML}
 
             <div class="plan-card-footer-tools">
-                <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                    <button class="btn-finish-hangout" data-action="open-confirm-attendance" data-plan-id="${plan.id}">
-                        ${state === 'completed' ? '📸 Editar cierre / recuerdo' : '🔔 Finalizar y pasar lista'}
-                    </button>
-                    <button class="btn-wa-share-plan" data-action="share-plan-wa" data-plan-id="${plan.id}">
-                        📲 WhatsApp
-                    </button>
-                </div>
-                <button class="btn-delete-plan" data-action="delete-plan" data-plan-id="${plan.id}" title="Eliminar quedada">
-                    🗑️
+                <button class="btn-finish-hangout" data-action="open-confirm-attendance" data-plan-id="${plan.id}">
+                    ${state === 'completed' ? '📸 Editar asistencia o foto' : '✓ Cerrar quedada y pasar lista'}
                 </button>
             </div>
         </article>
@@ -1871,12 +1858,12 @@ function renderGroupView() {
         const st = statsByMemberId[m.id] || { attended: 0, rate: 0 };
         const sv = getStreakVisuals(streaks[m.id]?.current || 0);
         const memberUsername = m.username ? normalizeUsername(m.username) : '';
-        let handleBadgeHTML = `<span style="font-size:10px; color:#f39c12; font-weight:700;">🔓 Libre para vincular</span>`;
+        let handleBadgeHTML = `<span class="member-handle-unlinked">Sin vincular</span>`;
         if (memberUsername) {
             if (memberUsername === myUsername) {
-                handleBadgeHTML = `<span style="font-size:10px; color:#2ecc71; font-weight:800;">🔒 Tu cuenta (${escapeHtml(formatHandle(memberUsername))})</span>`;
+                handleBadgeHTML = `<span class="member-handle-me">${escapeHtml(formatHandle(memberUsername))} · Tú</span>`;
             } else {
-                handleBadgeHTML = `<span style="font-size:10px; color:var(--text-muted); font-weight:700;">🔒 ${escapeHtml(formatHandle(memberUsername))}</span>`;
+                handleBadgeHTML = `<span class="member-handle-other">${escapeHtml(formatHandle(memberUsername))}</span>`;
             }
         }
 
@@ -1887,17 +1874,17 @@ function renderGroupView() {
                     <div>
                         <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                             <span class="member-name">${escapeHtml(m.name)}</span>
-                            ${m.isAdmin ? `<span class="admin-badge-wa">Admin del grupo</span>` : ''}
+                            ${m.isAdmin ? `<span class="admin-badge-wa">Admin</span>` : ''}
                             ${sv.badgeHtml}
                         </div>
-                        <div class="member-role">${st.attended} asistencias (${st.rate}%) · ${handleBadgeHTML}</div>
+                        <div class="member-role">${handleBadgeHTML} · ${st.rate}% asistencia</div>
                     </div>
                 </div>
-                <div style="display:flex; align-items:center; gap:6px;">
-                    <button type="button" class="btn-admin-toggle" data-action="toggle-admin" data-user-id="${m.id}" title="Dar o quitar Admin">
-                        ${m.isAdmin ? 'Quitar Admin' : '👑 Hacer Admin'}
+                <div class="member-right-actions">
+                    <button type="button" class="btn-admin-toggle ${m.isAdmin ? 'is-admin' : ''}" data-action="toggle-admin" data-user-id="${m.id}" title="${m.isAdmin ? 'Quitar Admin' : 'Hacer Admin'}">
+                        👑
                     </button>
-                    <button type="button" class="btn-delete-plan" data-action="remove-member" data-user-id="${m.id}" title="Eliminar integrante">🗑️</button>
+                    <button type="button" class="btn-delete-plan" data-action="remove-member" data-user-id="${m.id}" title="Eliminar integrante">✕</button>
                 </div>
             </div>
         `;
@@ -2881,6 +2868,20 @@ function setupEventListeners() {
         selectedPeriodKey = pill.getAttribute('data-period-key');
         renderStatsView();
     });
+
+    const statsSectionTabs = document.getElementById('stats-section-tabs');
+    if (statsSectionTabs) {
+        statsSectionTabs.addEventListener('click', e => {
+            const btn = e.target.closest('[data-stats-panel]');
+            if (!btn) return;
+            const targetPanelId = btn.getAttribute('data-stats-panel');
+            statsSectionTabs.querySelectorAll('.stats-subnav-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('#view-stats .stats-subpanel').forEach(panel => {
+                panel.classList.toggle('hidden', panel.id !== targetPanelId);
+            });
+        });
+    }
 
     // --- 9. GESTIÓN DEL GRUPO Y ADMINS ESTILO WHATSAPP ---
     document.getElementById('edit-group-photo-input').addEventListener('change', e => {
